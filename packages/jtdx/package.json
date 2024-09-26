@@ -1,0 +1,23 @@
+{
+  "packageManager": "pnpm@9.10.0",
+  "name": "jtdx",
+  "version": "0.0.0",
+  "description": "a validator for a superset of JTD",
+  "type": "module",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/umajho/jtdx/"
+  },
+  "author": "Umaĵo",
+  "license": "MIT",
+  "homepage": "https://github.com/umajho/jtdx/tree/main/packages/jtdx#readme",
+  "scripts": {
+    "test": "vitest run",
+    "test-ui": "vitest --ui"
+  },
+  "devDependencies": {
+    "@vitest/ui": "^2.1.1",
+    "vitest": "^2.1.1"
+  }
+}

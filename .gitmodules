@@ -1,0 +1,3 @@
+[submodule "third-party/json-typedef-spec"]
+	path = third-party/json-typedef-spec
+	url = https://github.com/jsontypedef/json-typedef-spec
