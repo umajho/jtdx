@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { jsonTypeOf } from "./utils/jsonTypeOf";
-
 import officialValidationJson from "../../../third-party/json-typedef-spec/tests/validation.json" assert {
   type: "json",
 };
@@ -119,10 +117,6 @@ describe("Official", () => {
     const jsonInstance = JSON.stringify(instance);
     const caseName = `${name}: [${ox}] ${jsonSchema} ${jsonInstance}`;
 
-    if (jsonTypeOf(schema) === "object" && "definitions" in (schema as any)) {
-      it.todo(caseName);
-      continue;
-    }
     const caseFn = () => {
       const validator = (() => {
         const compileResult = compile(schema as any);

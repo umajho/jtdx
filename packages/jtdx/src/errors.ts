@@ -80,7 +80,16 @@ export type CompilationRawError =
   // e.g. `{ "ref": 42 }` => `{ ..., actualRefType: "number" }`.
   | { type: "REF_FORM:NON_STRING_REF"; actualRefType: JSONType }
   // e.g. `{ "ref": "foo" }` => `{ ..., definition: "foo" }`.
-  | { type: "REF_FORM:NO_DEFINITION"; definition: string };
+  | { type: "REF_FORM:NO_DEFINITION"; definition: string }
+  // e.g. `{ "definitions": 42 }` => `{ ..., actualDefinitionsType: "number" }`.
+  | {
+    type: "DEFINITIONS:NON_OBJECT_DEFINITIONS";
+    actualDefinitionsType: string;
+  }
+  | {
+    type: "DEFINITIONS:NOOP_CIRCULAR_REFERENCES_DETECTED";
+    definitionsInCycle: string[];
+  };
 
 export interface ValidationError {
   instancePath: string[];

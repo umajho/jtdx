@@ -325,6 +325,18 @@ export function validateDiscriminator(
   subFn(v, instancePath, refs);
 }
 
+export function validateRef(
+  v: any,
+  subValidateFnGetter: () => InternalValidator["validate"] | null,
+  instancePath: string[],
+  refs: ValidationReferences,
+  opts: ValidationOptions,
+) {
+  if (opts.isNullable && v === null) return;
+  const subValidateFn = subValidateFnGetter();
+  subValidateFn!(v, instancePath, refs);
+}
+
 function pushError(
   schemaPath: string[],
   instancePath: string[],

@@ -16,6 +16,7 @@ import {
   TypeSchema,
   ValuesSchema,
 } from "./types";
+import { findCircular } from "./utils/graph";
 import { jsonTypeOf } from "./utils/jsonTypeOf";
 import {
   InternalValidator,
@@ -28,6 +29,7 @@ import {
   validateFloat,
   validateInteger,
   validateProperties,
+  validateRef,
   validateString,
   validateTimestamp,
   validateValues,
@@ -46,14 +48,21 @@ export type ValidationResult =
   | { isOk: true }
   | { isOk: false; errors: ValidationError[] };
 
+type Dependencies = Record<string, { isAtRoot: boolean }>;
+
 export function compile(schema: RootSchema) {
   const definitions = {}; // TODO!!
 
   const errors: CompilationError[] = [];
-  const refs: Set<string> = new Set();
+  const dependencies: Dependencies = {}; // NOTE: unused.
 
+  if (jsonTypeOf(schema) === "object" && "definitions" in schema) {
+    compileDefinitions(schema.definitions!, { definitions, errors });
+  }
+
+  const refs = { definitions, errors, dependencies };
   const internalValidator = //
-    compileSub(schema, [], { definitions, errors, refs }, { isRoot: true });
+    compileSub(schema, [], refs, { type: "root" });
   if (!internalValidator) return { isOk: false, errors };
 
   const validator: Validator = {
@@ -69,9 +78,67 @@ export function compile(schema: RootSchema) {
   return { isOk: true, validator };
 }
 
-// function compileDefinitions(definitions: Record<string, Schema>) {
-//   throw new Error("todo");
-// }
+function compileDefinitions(
+  definitions: Record<string, Schema>,
+  refs: {
+    definitions: Record<string, () => InternalValidator["validate"]>;
+    errors: CompilationError[];
+  },
+) {
+  function pushError(sp: string[], raw: CompilationRawError) {
+    refs.errors.push(makeCompilationError(sp, raw));
+  }
+  const isDryRun = () => refs.errors.length > 0;
+
+  {
+    const t = jsonTypeOf(definitions);
+    if (t !== "object") {
+      pushError([], {
+        type: "DEFINITIONS:NON_OBJECT_DEFINITIONS",
+        actualDefinitionsType: t,
+      });
+      return;
+    }
+  }
+
+  const validateFns: Record<string, InternalValidator["validate"]> = {};
+  for (const name of Object.keys(definitions)) {
+    refs.definitions[name] = () => validateFns[name]!;
+  }
+
+  const rootDepsGraph: Record<string, string> = {};
+
+  for (const [name, schema] of Object.entries(definitions)) {
+    const dependencies: Dependencies = {};
+    const subRefs = {
+      definitions: refs.definitions,
+      errors: refs.errors,
+      dependencies,
+    };
+    const sub = compileSub(schema, ["definitions", name], subRefs, {
+      type: "definition_root",
+    });
+    for (const [to, { isAtRoot }] of Object.entries(dependencies)) {
+      if (isAtRoot) {
+        if (name in rootDepsGraph) throw new Error("unreachable");
+        rootDepsGraph[name] = to;
+      }
+    }
+    if (!isDryRun()) {
+      validateFns[name] = sub!.validate;
+    }
+  }
+
+  const circles = findCircular(rootDepsGraph);
+  if (circles.length) {
+    for (const circle of circles) {
+      pushError([], {
+        type: "DEFINITIONS:NOOP_CIRCULAR_REFERENCES_DETECTED",
+        definitionsInCycle: circle,
+      });
+    }
+  }
+}
 
 function compileSub(
   schema: Schema,
@@ -80,10 +147,10 @@ function compileSub(
   refs: {
     definitions: Record<string, () => InternalValidator["validate"] | null>;
     errors: CompilationError[];
-    refs: Set<string>;
+    dependencies: Dependencies;
   },
   state?: {
-    isRoot?: true;
+    type?: "root" | "definition_root"; // TODO: "x:lazy_under_root".
     mapping?: {
       discriminator: string;
     };
@@ -135,7 +202,7 @@ function compileSub(
       pushError(spParent, { type: "MAPPING:NULLABLE" });
     }
   }
-  if (!state?.isRoot) {
+  if (state?.type !== "root") {
     const rootKeys = Object.keys(groupedKeys.root);
     if (rootKeys.length) {
       pushError(spParent, {
@@ -408,9 +475,13 @@ function compileSub(
       if (!(ref in refs.definitions)) {
         pushError(sp, { type: "REF_FORM:NO_DEFINITION", definition: ref });
       }
+      refs.dependencies[ref] = {
+        isAtRoot: state?.type === "root" || state?.type === "definition_root",
+      };
 
       if (isDryRun()) break;
-      throw new Error("todo");
+      const subGetter = refs.definitions[ref]!;
+      return ok((v, ip, refs) => validateRef(v, subGetter, ip, refs, opts));
     }
     default:
       groupedKeys satisfies never;
