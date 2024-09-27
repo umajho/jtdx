@@ -131,7 +131,7 @@ function compileSub(
         });
       }
     }
-    if (groupedKeys.common.nullable) {
+    if (groupedKeys.shared.nullable) {
       pushError(spParent, { type: "MAPPING:NULLABLE" });
     }
   }
@@ -153,7 +153,7 @@ function compileSub(
   }
 
   const opts: ValidationOptions = {};
-  if (groupedKeys.common.nullable) {
+  if (groupedKeys.shared.nullable) {
     const isNullable = schema.nullable;
     if (isNullable !== undefined) {
       const t = jsonTypeOf(isNullable);
@@ -436,7 +436,7 @@ type GroupedKeys =
   | { type: "ambiguous"; schemaFormDiscriminatorKeys: string[] };
 type GroupedKeysOf<T extends string> = {
   type: T;
-  common: { nullable?: true; metadata?: true };
+  shared: { nullable?: true; metadata?: true };
   root: { definitions?: true };
   unrecognized?: string[];
 };
@@ -459,7 +459,7 @@ function groupKeys(keys: string[]): GroupedKeys {
             type: "properties",
             properties: key === "properties",
             optionalProperties: key === "optionalProperties",
-            common: {},
+            shared: {},
             root: {},
           };
         } else if (result.type === "properties") {
@@ -469,7 +469,7 @@ function groupKeys(keys: string[]): GroupedKeys {
         }
       } else {
         if (!result) {
-          result = { type: key, common: {}, root: {} };
+          result = { type: key, shared: {}, root: {} };
         } else {
           result = { type: "ambiguous", schemaFormDiscriminatorKeys };
         }
@@ -480,12 +480,12 @@ function groupKeys(keys: string[]): GroupedKeys {
   }
 
   if (!result) {
-    result = { type: "empty", common: {}, root: {} };
+    result = { type: "empty", shared: {}, root: {} };
   } else if (result.type === "ambiguous") return result;
 
   for (const key of restKeys) {
     if (key === "nullable" || key === "metadata") {
-      result.common[key] = true;
+      result.shared[key] = true;
     } else if (key === "definitions") {
       result.root[key] = true;
     } else if (result.type === "properties" && key === "additionalProperties") {
