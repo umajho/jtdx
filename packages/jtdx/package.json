@@ -12,6 +12,7 @@
   "author": "Umaĵo",
   "license": "MIT",
   "homepage": "https://github.com/umajho/jtdx/tree/main/packages/jtdx#readme",
+  "main": "lib.ts",
   "scripts": {
     "test": "vitest run",
     "test-ui": "vitest --ui"
