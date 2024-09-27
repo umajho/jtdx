@@ -193,7 +193,9 @@ export function validateProperties(
 
   const selfSchemaPath = [
     ...schemaPath,
-    opts.requiredProperties ? "properties" : "optionalProperties",
+    (!Object.keys(subValidateFns).length || opts.requiredProperties)
+      ? "properties"
+      : "optionalProperties",
   ];
 
   const t = jsonTypeOf(v);
