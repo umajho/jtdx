@@ -33,6 +33,8 @@ export type TypeSchemaType =
   | "timestamp"
   | "float32"
   | "float64"
+  | TypeSchemaTypeInteger;
+export type TypeSchemaTypeInteger =
   | "int8"
   | "uint8"
   | "int16"

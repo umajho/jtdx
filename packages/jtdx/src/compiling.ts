@@ -58,7 +58,10 @@ export type ValidationResult =
 
 type Dependencies = Record<string, { isAtRoot: boolean }>;
 
-export function compile(schema: RootSchema, options: CompilationOptions) {
+export function compile(
+  schema: RootSchema,
+  options: CompilationOptions,
+): CompilationResult {
   const definitions = {}; // TODO!!
 
   const errors: CompilationError[] = [];

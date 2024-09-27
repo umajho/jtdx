@@ -1,4 +1,5 @@
 import { ValidationError, ValidationRawError } from "./errors";
+import { TypeSchemaTypeInteger } from "./types";
 import isRFC3339 from "./utils/isRFC3339";
 import { jsonTypeOf } from "./utils/jsonTypeOf";
 
@@ -89,7 +90,7 @@ export function validateFloat(
 
 export function validateInteger(
   v: any,
-  which: "int8" | "uint8" | "int16" | "uint16" | "int32" | "uint32",
+  which: TypeSchemaTypeInteger,
   min: number,
   max: number,
   schemaPath: string[],
@@ -111,6 +112,7 @@ export function validateInteger(
   if (!Number.isInteger(v)) {
     pushError(schemaPath, instancePath, refs, {
       type: "TYPE_FORM:TYPE_MISMATCH:NOT_INTEGER",
+      expectedType: which,
     });
     return;
   }

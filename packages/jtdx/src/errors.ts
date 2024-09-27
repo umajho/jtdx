@@ -1,4 +1,8 @@
-import { SchemaType as SchemaForm, TypeSchemaType } from "./types";
+import {
+  SchemaType as SchemaForm,
+  TypeSchemaType,
+  TypeSchemaTypeInteger,
+} from "./types";
 import { JSONType } from "./utils/jsonTypeOf";
 
 export interface CompilationError {
@@ -120,7 +124,10 @@ export type ValidationRawError =
    */
     actualType: JSONType;
   }
-  | { type: "TYPE_FORM:TYPE_MISMATCH:NOT_INTEGER" }
+  | {
+    type: "TYPE_FORM:TYPE_MISMATCH:NOT_INTEGER";
+    expectedType: TypeSchemaTypeInteger;
+  }
   | { type: "ENUM_FORM:NOT_STRING"; actualType: JSONType }
   | { type: "ENUM_FORM:INVALID_VARIANT"; actualValue: string }
   | { type: "ELEMENTS_FORM:NOT_ARRAY"; actualType: JSONType }

@@ -1,107 +1,15 @@
 import { describe, expect, it } from "vitest";
 
+import "../test-support/mod";
+
 import officialValidationJson from "../../../third-party/json-typedef-spec/tests/validation.json" assert {
   type: "json",
 };
-import { CompilationResult, compile, ValidationResult } from "./compiling";
 
-interface ErrorInOfficialTestSuite {
-  schemaPath: (string)[];
-  instancePath: (string)[];
-}
-
-interface CustomMatchers<_R = unknown> {
-  compilationToBeOk(): void;
-  validationToBeOk(): void;
-  validationToBeNotOk(errors: ErrorInOfficialTestSuite[]): void;
-}
-declare module "vitest" {
-  interface Assertion<T = any> extends CustomMatchers<T> {}
-  interface AsymmetricMatchersContaining extends CustomMatchers {}
-}
-
-expect.extend({
-  compilationToBeOk: (received: CompilationResult) => {
-    if (received.isOk) {
-      return { message: () => "make tsc happy", pass: true };
-    }
-    const actualErrors = received.errors;
-    return {
-      message: () => `Unexpected Errors: ${JSON.stringify(actualErrors)}`,
-      pass: false,
-    };
-  },
-
-  validationToBeOk: (received: ValidationResult) => {
-    if (received.isOk) {
-      return { message: () => "make tsc happy", pass: true };
-    }
-    const actualErrors = received.errors;
-    return {
-      message: () => `Unexpected Errors: ${JSON.stringify(actualErrors)}`,
-      pass: false,
-    };
-  },
-
-  validationToBeNotOk: (
-    received: ValidationResult,
-    errors: ErrorInOfficialTestSuite[],
-  ) => {
-    let actualErrors = received.isOk ? [] : received.errors;
-    const missedErrors: ErrorInOfficialTestSuite[] = [];
-    const hitErrors: ErrorInOfficialTestSuite[] = [];
-    for (const error of errors) {
-      const oldCount = actualErrors.length;
-      actualErrors = actualErrors.filter(
-        (e) =>
-          !(pathsEqual(e.schemaPath, error.schemaPath) &&
-            pathsEqual(e.instancePath, error.instancePath)),
-      );
-      if (oldCount === actualErrors.length) {
-        missedErrors.push(error);
-      } else {
-        hitErrors.push(error);
-      }
-    }
-
-    if (missedErrors.length === 0 && actualErrors.length === 0) {
-      return { message: () => "make tsc happy", pass: true };
-    } else {
-      let message =
-        "Expected Errors and Actual Errors do not match (- Expected, + Received, ~ Same):\n";
-      function makeMessageLine(
-        symbol: string,
-        error: ErrorInOfficialTestSuite,
-        type?: string,
-      ) {
-        const schemaPathJSON = JSON.stringify(error.schemaPath);
-        const instancePathJSON = JSON.stringify(error.instancePath);
-        let line = `${symbol} ${schemaPathJSON} ${instancePathJSON}`;
-        if (type) {
-          line += ` ${type}`;
-        }
-        return line;
-      }
-      for (const error of actualErrors) {
-        message += `  ${makeMessageLine("+", error, error.raw.type)}\n`;
-      }
-      for (const error of missedErrors) {
-        message += `  ${makeMessageLine("-", error)}\n`;
-      }
-      for (const error of hitErrors) {
-        message += `  ${makeMessageLine("~", error)}\n`;
-      }
-      return {
-        message: () => message,
-        pass: false,
-      };
-    }
-  },
-});
-
-function pathsEqual(a: string[], b: string[]): boolean {
-  return a.length === b.length && a.every((v, i) => v === b[i]);
-}
+import { CompilationOptions, CompilationResult, compile } from "./compiling";
+import { Schema, TypeSchemaType } from "./types";
+import { ValidationError } from "./errors";
+import { JSONType } from "./utils/jsonTypeOf";
 
 const ONLY = ((): RegExp | null => {
   return null;
@@ -121,7 +29,8 @@ describe("Official", () => {
       const validator = (() => {
         const compileResult = compile(schema as any, { extensions: null });
         expect(compileResult).compilationToBeOk();
-        return compileResult.validator!;
+        return (compileResult as Extract<CompilationResult, { isOk: true }>)
+          .validator;
       })();
 
       const result = validator.validate(instance);
@@ -138,3 +47,250 @@ describe("Official", () => {
     }
   }
 });
+
+describe("Errors", () => {
+  describe("TYPE_FORM", () => {
+    describe("TYPE_FORM:TYPE_MISMATCH", () => {
+      const table: { type: TypeSchemaType; data: any; actualType: JSONType }[] =
+        [
+          { type: "string", data: 42, actualType: "number" },
+          { type: "uint8", data: -1, actualType: "number" },
+          { type: "timestamp", data: "foo", actualType: "string" },
+        ];
+      for (const [i, { type, data, actualType }] of table.entries()) {
+        it(`case ${i + 1}`, () => {
+          expectError(
+            { type },
+            data,
+            [{
+              schemaPath: ["type"],
+              instancePath: [],
+              raw: {
+                type: "TYPE_FORM:TYPE_MISMATCH",
+                expectedType: type,
+                actualType,
+              },
+            }],
+          );
+        });
+      }
+    });
+
+    describe("TYPE_FORM:TYPE_MISMATCH:NOT_INTEGER", () => {
+      it("case 1", () => {
+        expectError(
+          { type: "uint8" },
+          1.5,
+          [{
+            schemaPath: ["type"],
+            instancePath: [],
+            raw: {
+              type: "TYPE_FORM:TYPE_MISMATCH:NOT_INTEGER",
+              expectedType: "uint8",
+            },
+          }],
+        );
+      });
+    });
+  });
+
+  describe("ENUM_FORM", () => {
+    describe("ENUM_FORM:NOT_STRING", () => {
+      it("case 1", () => {
+        expectError(
+          { enum: ["foo"] },
+          42,
+          [{
+            schemaPath: ["enum"],
+            instancePath: [],
+            raw: { type: "ENUM_FORM:NOT_STRING", actualType: "number" },
+          }],
+        );
+      });
+    });
+
+    describe("ENUM_FORM:INVALID_VARIANT", () => {
+      it("case 1", () => {
+        expectError(
+          { enum: ["foo"] },
+          "bar",
+          [{
+            schemaPath: ["enum"],
+            instancePath: [],
+            raw: { type: "ENUM_FORM:INVALID_VARIANT", actualValue: "bar" },
+          }],
+        );
+      });
+    });
+  });
+
+  describe("ELEMENTS_FORM", () => {
+    describe("ELEMENTS_FORM:NOT_ARRAY", () => {
+      it("case 1", () => {
+        expectError(
+          { elements: { type: "string" } },
+          42,
+          [{
+            schemaPath: ["elements"],
+            instancePath: [],
+            raw: { type: "ELEMENTS_FORM:NOT_ARRAY", actualType: "number" },
+          }],
+        );
+      });
+    });
+  });
+
+  describe("PROPERTIES_FORM", () => {
+    describe("PROPERTIES_FORM:NOT_OBJECT", () => {
+      it("case 1", () => {
+        expectError(
+          { properties: {} },
+          42,
+          [{
+            schemaPath: ["properties"],
+            instancePath: [],
+            raw: { type: "PROPERTIES_FORM:NOT_OBJECT", actualType: "number" },
+          }],
+        );
+      });
+    });
+
+    describe("PROPERTIES_FORM:MISSING_REQUIRED_PROPERTY", () => {
+      it("case 1", () => {
+        expectError(
+          { properties: { foo: { type: "string" } } },
+          {},
+          [{
+            schemaPath: ["properties", "foo"],
+            instancePath: [],
+            raw: {
+              type: "PROPERTIES_FORM:MISSING_REQUIRED_PROPERTY",
+              key: "foo",
+            },
+          }],
+        );
+      });
+    });
+
+    describe("PROPERTIES_FORM:UNEXPECTED_ADDITIONAL_PROPERTY", () => {
+      it("case 1", () => {
+        expectError(
+          { properties: {} },
+          { foo: 42 },
+          [{
+            schemaPath: [],
+            instancePath: ["foo"],
+            raw: {
+              type: "PROPERTIES_FORM:UNEXPECTED_ADDITIONAL_PROPERTY",
+              key: "foo",
+            },
+          }],
+        );
+      });
+    });
+  });
+
+  describe("VALUES_FORM", () => {
+    describe("VALUES_FORM:NOT_OBJECT", () => {
+      it("case 1", () => {
+        expectError(
+          { values: { type: "string" } },
+          42,
+          [{
+            schemaPath: ["values"],
+            instancePath: [],
+            raw: { type: "VALUES_FORM:NOT_OBJECT", actualType: "number" },
+          }],
+        );
+      });
+    });
+  });
+
+  describe("DISCRIMINATOR_FORM", () => {
+    describe("DISCRIMINATOR_FORM:NOT_OBJECT", () => {
+      it("case 1", () => {
+        expectError(
+          { discriminator: "foo", mapping: { bar: { properties: {} } } },
+          42,
+          [{
+            schemaPath: ["discriminator"],
+            instancePath: [],
+            raw: {
+              type: "DISCRIMINATOR_FORM:NOT_OBJECT",
+              actualType: "number",
+            },
+          }],
+        );
+      });
+    });
+
+    describe("DISCRIMINATOR_FORM:MISSING_DISCRIMINATOR", () => {
+      it("case 1", () => {
+        expectError(
+          { discriminator: "foo", mapping: { bar: { properties: {} } } },
+          {},
+          [{
+            schemaPath: ["discriminator"],
+            instancePath: [],
+            raw: {
+              type: "DISCRIMINATOR_FORM:MISSING_DISCRIMINATOR",
+              discriminator: "foo",
+            },
+          }],
+        );
+      });
+    });
+
+    describe("DISCRIMINATOR_FORM:DISCRIMINATOR_VALUE_NOT_STRING", () => {
+      it("case 1", () => {
+        expectError(
+          { discriminator: "foo", mapping: { bar: { properties: {} } } },
+          { foo: 42 },
+          [{
+            schemaPath: ["discriminator"],
+            instancePath: ["foo"],
+            raw: {
+              type: "DISCRIMINATOR_FORM:DISCRIMINATOR_VALUE_NOT_STRING",
+              actualType: "number",
+            },
+          }],
+        );
+      });
+    });
+
+    describe("DISCRIMINATOR_FORM:INVALID_DISCRIMINATOR_VALUE", () => {
+      it("case 1", () => {
+        expectError(
+          { discriminator: "foo", mapping: { bar: { properties: {} } } },
+          { foo: "baz" },
+          [{
+            schemaPath: ["mapping"],
+            instancePath: ["foo"],
+            raw: {
+              type: "DISCRIMINATOR_FORM:INVALID_DISCRIMINATOR_VALUE",
+              actualDiscriminatorValue: "baz",
+            },
+          }],
+        );
+      });
+    });
+  });
+});
+
+function expectError(
+  schema: Schema,
+  data: any,
+  errors: ValidationError[],
+  opts?: {
+    compilationOptions: CompilationOptions;
+  },
+) {
+  const compOpts = opts?.compilationOptions ?? { extensions: null };
+
+  const compResult = compile(schema, compOpts);
+  expect(compResult).compilationToBeOk();
+  const validator =
+    (compResult as Extract<CompilationResult, { isOk: true }>).validator;
+
+  expect(validator.validate(data)).toEqual({ isOk: false, errors });
+}
