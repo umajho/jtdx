@@ -41,31 +41,31 @@ export type CompilationRawError =
   | { type: "ENUM_FORM:NON_ARRAY_ENUM"; actualEnumType: JSONType }
   // e.g. `{ "enum": [] }`.
   | { type: "ENUM_FORM:EMPTY_ENUM" }
-  // e.g. `{ "enum": [42] }` => `{ ..., actualEnumVariantType: "number" }`.
+  // e.g. `{ "enum": [42] }`.
   | { type: "ENUM_FORM:NON_STRING_VARIANTS" }
   // e.g. `{ "enum": ["foo", "foo"] }` => `{ ..., duplicateVariants: ["foo"] }`
   | { type: "ENUM_FORM:DUPLICATE_VARIANTS"; duplicateVariants: string[] }
   // e.g. `{ "properties": 42 }` => `{ ..., actualPropertiesType: "number" }`.
   | {
     type: "PROPERTIES_FORM:NON_OBJECT_PROPERTIES";
-    actualPropertiesType: string;
+    actualPropertiesType: JSONType;
   }
   // e.g. `{ "optionalProperties": 42 }` => `{ ..., actualOptionalPropertiesType: "number" }`
   | {
     type: "PROPERTIES_FORM:NON_OBJECT_OPTIONAL_PROPERTIES";
-    actualOptionalPropertiesType: string;
+    actualOptionalPropertiesType: JSONType;
   }
   // e.g. `{ "properties": { "foo": {} }, "optionalProperties": { "foo": {} } }` => `{ ..., keys: ["foo"] }`.
   | {
     type: "PROPERTIES_FORM:OVERLAPPING_REQUIRED_AND_OPTIONAL_PROPERTIES";
     keys: string[];
   }
-  // e.g. `{ "additionalProperties": 42 }` => `{ ..., actualAdditionalPropertiesType: "number" }`.
+  // e.g. `{ "properties": {}, "additionalProperties": 42 }` => `{ ..., actualAdditionalPropertiesType: "number" }`.
   | {
     type: "PROPERTIES_FORM:NON_BOOLEAN_ADDITIONAL_PROPERTIES";
-    actualAdditionalPropertiesType: string;
+    actualAdditionalPropertiesType: JSONType;
   }
-  // e.g. `{ "discriminator": 42 }` => `{ ..., actualDiscriminatorType: "number" }`.
+  // e.g. `{ "discriminator": 42, "mapping": { "foo": { "properties": {} } } }` => `{ ..., actualDiscriminatorType: "number" }`.
   | {
     type: "DISCRIMINATOR_FORM:NON_STRING_DISCRIMINATOR";
     actualDiscriminatorType: JSONType;
@@ -75,7 +75,7 @@ export type CompilationRawError =
   // e.g. `{ "discriminator": "foo", "mapping": 42 }` => `{ ..., actualMappingType: "number" }`.
   | {
     type: "DISCRIMINATOR_FORM:NON_OBJECT_MAPPING";
-    actualMappingType: string;
+    actualMappingType: JSONType;
   }
   // e.g. `{ "ref": 42 }` => `{ ..., actualRefType: "number" }`.
   | { type: "REF_FORM:NON_STRING_REF"; actualRefType: JSONType }
@@ -84,8 +84,9 @@ export type CompilationRawError =
   // e.g. `{ "definitions": 42 }` => `{ ..., actualDefinitionsType: "number" }`.
   | {
     type: "DEFINITIONS:NON_OBJECT_DEFINITIONS";
-    actualDefinitionsType: string;
+    actualDefinitionsType: JSONType;
   }
+  // e.g. `{ "definitions": { "foo": { "ref": "foo" } } }` => `{ ..., definitionsInCycle: ["foo"] }`.
   | {
     type: "DEFINITIONS:NOOP_CIRCULAR_REFERENCES_DETECTED";
     definitionsInCycle: string[];
