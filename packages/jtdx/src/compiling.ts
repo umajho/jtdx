@@ -37,6 +37,14 @@ import {
   ValidationOptionsForProperties,
 } from "./validating";
 
+export type CompilationOptions = {
+  extensions: {
+    breaking: {
+      "(disallow empty mappings)": boolean;
+    } | null;
+  } | null;
+};
+
 export type CompilationResult =
   | { isOk: true; validator: Validator }
   | { isOk: false; errors: CompilationError[] };
@@ -50,17 +58,17 @@ export type ValidationResult =
 
 type Dependencies = Record<string, { isAtRoot: boolean }>;
 
-export function compile(schema: RootSchema) {
+export function compile(schema: RootSchema, options: CompilationOptions) {
   const definitions = {}; // TODO!!
 
   const errors: CompilationError[] = [];
   const dependencies: Dependencies = {}; // NOTE: unused.
 
   if (jsonTypeOf(schema) === "object" && "definitions" in schema) {
-    compileDefinitions(schema.definitions!, { definitions, errors });
+    compileDefinitions(schema.definitions!, { options, definitions, errors });
   }
 
-  const refs = { definitions, errors, dependencies };
+  const refs = { options, definitions, errors, dependencies };
   const internalValidator = //
     compileSub(schema, [], refs, { type: "root" });
   if (!internalValidator) return { isOk: false, errors };
@@ -81,6 +89,7 @@ export function compile(schema: RootSchema) {
 function compileDefinitions(
   definitions: Record<string, Schema>,
   refs: {
+    options: CompilationOptions;
     definitions: Record<string, () => InternalValidator["validate"]>;
     errors: CompilationError[];
   },
@@ -111,6 +120,7 @@ function compileDefinitions(
   for (const [name, schema] of Object.entries(definitions)) {
     const dependencies: Dependencies = {};
     const subRefs = {
+      options: refs.options,
       definitions: refs.definitions,
       errors: refs.errors,
       dependencies,
@@ -145,6 +155,7 @@ function compileSub(
   /** sp = schema path. */
   spParent: string[],
   refs: {
+    options: CompilationOptions;
     definitions: Record<string, () => InternalValidator["validate"] | null>;
     errors: CompilationError[];
     dependencies: Dependencies;
@@ -444,6 +455,12 @@ function compileSub(
           type: "DISCRIMINATOR_FORM:NON_OBJECT_MAPPING",
           actualMappingType: tMapping,
         });
+        break;
+      } else if (
+        refs.options.extensions?.breaking?.["(disallow empty mappings)"] &&
+        Object.keys(mapping).length === 0
+      ) {
+        pushError(spParent, { type: "DISCRIMINATOR_FORM:EMPTY_MAPPING" });
         break;
       }
 

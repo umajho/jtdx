@@ -90,7 +90,13 @@ export type CompilationRawError =
   | {
     type: "DEFINITIONS:NOOP_CIRCULAR_REFERENCES_DETECTED";
     definitionsInCycle: string[];
-  };
+  }
+  | CompilationRawErrorExtra;
+
+type CompilationRawErrorExtra =
+  // Enabled by extension `breaking/(disallow empty mappings)`.
+  // e.g. `{ "discriminator": "foo", "mapping": {} }`.
+  { type: "DISCRIMINATOR_FORM:EMPTY_MAPPING" };
 
 export interface ValidationError {
   instancePath: string[];

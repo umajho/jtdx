@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { compile } from "./compiling";
+import { CompilationOptions, compile } from "./compiling";
 
 import officialInvalidSchemasJson from "../../../third-party/json-typedef-spec/tests/invalid_schemas.json" assert {
   type: "json",
@@ -13,7 +13,7 @@ describe("Official", () => {
     const caseName = `${name}: ${JSON.stringify(schema)}`;
 
     it(caseName, () => {
-      const compileResult = compile(schema as any);
+      const compileResult = compile(schema as any, { extensions: null });
       expect(compileResult.isOk).toBe(false);
     });
   }
@@ -395,8 +395,41 @@ describe("Errors", () => {
       });
     });
   });
+
+  describe("Breaking Extensions: (disallow empty mappings)", () => {
+    it("works", () => {
+      const schema: Schema = { discriminator: "foo", mapping: {} };
+
+      expect(compile(schema, { extensions: null }).isOk).toBe(true);
+
+      expectError(
+        schema,
+        [{
+          schemaPath: [],
+          raw: { type: "DISCRIMINATOR_FORM:EMPTY_MAPPING" },
+        }],
+        {
+          compilationOptions: {
+            extensions: {
+              breaking: {
+                "(disallow empty mappings)": true,
+              },
+            },
+          },
+        },
+      );
+    });
+  });
 });
 
-function expectError(schema: Schema, errors: CompilationError[]) {
-  expect(compile(schema)).toEqual({ isOk: false, errors });
+function expectError(
+  schema: Schema,
+  errors: CompilationError[],
+  opts?: {
+    compilationOptions: CompilationOptions;
+  },
+) {
+  const compOpts = opts?.compilationOptions ?? { extensions: null };
+
+  expect(compile(schema, compOpts)).toEqual({ isOk: false, errors });
 }

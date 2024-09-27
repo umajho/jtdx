@@ -119,7 +119,7 @@ describe("Official", () => {
 
     const caseFn = () => {
       const validator = (() => {
-        const compileResult = compile(schema as any);
+        const compileResult = compile(schema as any, { extensions: null });
         expect(compileResult).compilationToBeOk();
         return compileResult.validator!;
       })();
