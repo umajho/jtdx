@@ -1,5 +1,8 @@
 # JTDX
 
+[![NPM Version](https://img.shields.io/npm/v/jtdx)](https://www.npmjs.com/package/jtdx)
+[![GitHub Repo stars](https://img.shields.io/github/stars/umajho/jtdx)](https://github.com/umajho/jtdx/)
+
 My personal take on extending JSON Typedef.
 
 ## Reasoning
