@@ -26,3 +26,53 @@ My personal take on extending JSON Typedef.
   > Supporting features like lazy loading already breaks JSON Typedef. Enabling
   > these features by putting related stuff in the `metadata` field just makes
   > that less obvious. For other features, it is just for consistency.
+
+## Basic Usage
+
+```typescript
+import { compile, type RootSchema } from "jtdx";
+
+const schema: RootSchema = { type: "string" };
+const compilationResult = compile(schema, {
+  extensions: null,
+});
+if (!compilationResult.isOk) {
+  throw new Error(
+    `Compilation failed: ${JSON.stringify(compilationResult.errors)}`,
+  );
+}
+const validator = compilationResult.validator;
+
+const validationResult = validator.validate("Hello, world!");
+if (!validationResult.isOk) {
+  throw new Error(
+    `Validation failed: ${JSON.stringify(validationResult.errors)}`,
+  );
+}
+console.log("Validation succeeded!");
+```
+
+## Breaking Extension `/breaking/(disallow empty mappings)`
+
+```diff
+  const compilationResult = compile(schema, {
+-   extensions: null,
++   extensions: {
++     breaking: {
++       "(disallow empty mappings)": true,
++     },
++   },
+  });
+```
+
+This will cause the compiler to disallow empty mappings in the schema.
+
+For example, when this extension is enabled, the following schema is invalid,
+otherwise it is valid:
+
+```json
+{
+  "discriminator": "foo",
+  "mapping": {}
+}
+```
