@@ -2,7 +2,7 @@
 
 My personal take on extending JSON Typedef.
 
-# Reasoning
+## Reasoning
 
 - Why do I need to extend JSON Typedef?
   > I'm working on a project, where users should be able to create forms from
