@@ -26,7 +26,7 @@ export type EmptySchema = Record<string, never>;
 
 export type TypeSchema = {
   type: TypeSchemaType;
-} & CommonProperties;
+} & SharedProperties;
 export type TypeSchemaType =
   | "boolean"
   | "string"
@@ -42,9 +42,9 @@ export type TypeSchemaTypeInteger =
   | "int32"
   | "uint32";
 
-export type EnumSchema = { enum: string[] } & CommonProperties;
+export type EnumSchema = { enum: string[] } & SharedProperties;
 
-export type ElementsSchema = { elements: Schema } & CommonProperties;
+export type ElementsSchema = { elements: Schema } & SharedProperties;
 
 export type PropertiesSchemaBase =
   & (
@@ -57,17 +57,17 @@ export type PropertiesSchemaBase =
   & { additionalProperties?: boolean };
 // `type PropertiesSchema<IsMapping = false>` results in `Type alias 'Schema'
 // circularly references itself`. (TypeScript 5.5.4)
-export type PropertiesSchema = PropertiesSchemaBase & CommonProperties;
+export type PropertiesSchema = PropertiesSchemaBase & SharedProperties;
 
-export type ValuesSchema = { values: Schema } & CommonProperties;
+export type ValuesSchema = { values: Schema } & SharedProperties;
 
 export type DiscriminatorSchema = {
   discriminator: string;
-  mapping: Record<string, PropertiesSchemaBase & CommonProperties<true>>;
-} & CommonProperties;
+  mapping: Record<string, PropertiesSchemaBase & SharedProperties<true>>;
+} & SharedProperties;
 
-export type RefSchema = { ref: string } & CommonProperties;
+export type RefSchema = { ref: string } & SharedProperties;
 
-export type CommonProperties<IsMapping = false> = {
+export type SharedProperties<IsMapping = false> = {
   metadata?: Record<string, unknown>;
 } & (IsMapping extends true ? {} : { nullable?: boolean });
