@@ -1,7 +1,7 @@
 {
   "packageManager": "pnpm@9.10.0",
   "name": "jtdx",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "a validator for a superset of JTD",
   "type": "module",
   "sideEffects": false,
