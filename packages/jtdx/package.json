@@ -12,6 +12,7 @@
   "author": "Umaĵo",
   "license": "MIT",
   "homepage": "https://github.com/umajho/jtdx/tree/main/packages/jtdx#readme",
+  "files": ["dist"],
   "main": "dist/mod.js",
   "types": "dist/types/mod.d.ts",
   "scripts": {
