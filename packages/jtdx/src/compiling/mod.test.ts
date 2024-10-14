@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { CompilationOptions, compile } from "./compiling";
+import { CompilationOptions, compile } from "./mod";
 
-import officialInvalidSchemasJson from "../../../third-party/json-typedef-spec/tests/invalid_schemas.json" assert {
+import officialInvalidSchemasJson from "../../../../third-party/json-typedef-spec/tests/invalid_schemas.json" assert {
   type: "json",
 };
-import { Schema } from "./types";
-import { CompilationError } from "./errors";
+import { Schema } from "../types";
+import { CompilationError } from "../errors";
 
 describe("Official", () => {
   for (const [name, schema] of Object.entries(officialInvalidSchemasJson)) {

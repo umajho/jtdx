@@ -6,7 +6,11 @@ import officialValidationJson from "../../../third-party/json-typedef-spec/tests
   type: "json",
 };
 
-import { CompilationOptions, CompilationResult, compile } from "./compiling";
+import {
+  CompilationOptions,
+  CompilationResult,
+  compile,
+} from "./compiling/mod";
 import { Schema, TypeSchemaType } from "./types";
 import { ValidationError } from "./errors";
 import { JSONType } from "./utils/jsonTypeOf";

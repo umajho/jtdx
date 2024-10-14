@@ -4,7 +4,7 @@ export type {
   CompilationResult,
   ValidationResult,
   Validator,
-} from "./compiling";
+} from "./compiling/mod";
 export type {
   CompilationError,
   CompilationRawError,
@@ -12,4 +12,4 @@ export type {
   ValidationRawError,
 } from "./errors";
 
-export { compile } from "./compiling";
+export { compile } from "./compiling/mod";

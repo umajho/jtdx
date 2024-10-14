@@ -1,6 +1,6 @@
 import { expect } from "vitest";
 
-import { CompilationResult, ValidationResult } from "../src/compiling";
+import { CompilationResult, ValidationResult } from "../src/compiling/mod";
 
 interface ErrorInOfficialTestSuite {
   schemaPath: (string)[];

@@ -1,10 +1,10 @@
-import { RANGES } from "./consts";
+import { RANGES } from "../consts";
 import {
   CompilationError,
   CompilationRawError,
   createCompilationError as makeCompilationError,
   ValidationError,
-} from "./errors";
+} from "../errors";
 import {
   DiscriminatorSchema,
   ElementsSchema,
@@ -15,9 +15,9 @@ import {
   Schema,
   TypeSchema,
   ValuesSchema,
-} from "./types";
-import { findCircular } from "./utils/graph";
-import { jsonTypeOf } from "./utils/jsonTypeOf";
+} from "../types";
+import { findCircular } from "../utils/graph";
+import { jsonTypeOf } from "../utils/jsonTypeOf";
 import {
   InternalValidator,
   MappingValidateFunctions,
@@ -35,7 +35,8 @@ import {
   validateValues,
   ValidationOptions,
   ValidationOptionsForProperties,
-} from "./validating";
+} from "../validating";
+import { groupSchemaKeys } from "./schema-keys";
 
 export type CompilationOptions = {
   extensions: {
@@ -181,7 +182,7 @@ function compileSub(
     return null;
   }
 
-  const groupedKeys = groupKeys(Object.keys(schema));
+  const groupedKeys = groupSchemaKeys(Object.keys(schema));
 
   if (groupedKeys.type === "ambiguous") {
     pushError(spParent, {
@@ -508,86 +509,6 @@ function compileSub(
   }
 
   return null;
-}
-
-type GroupedKeys =
-  | GroupedKeysOf<"empty">
-  | GroupedKeysOf<"type">
-  | GroupedKeysOf<"enum">
-  | GroupedKeysOf<"elements">
-  | (GroupedKeysOf<"properties"> & {
-    properties: boolean;
-    optionalProperties: boolean;
-    additionalProperties?: true;
-  })
-  | GroupedKeysOf<"values">
-  | (GroupedKeysOf<"discriminator"> & { mapping?: true })
-  | GroupedKeysOf<"ref">
-  | { type: "ambiguous"; schemaFormDiscriminatorKeys: string[] };
-type GroupedKeysOf<T extends string> = {
-  type: T;
-  shared: { nullable?: true; metadata?: true };
-  root: { definitions?: true };
-  unrecognized?: string[];
-};
-
-function groupKeys(keys: string[]): GroupedKeys {
-  let result: GroupedKeys | null = null;
-  const schemaFormDiscriminatorKeys: string[] = [];
-  const restKeys: string[] = [];
-  for (const key of keys) {
-    if (
-      key === "type" || key === "enum" || key === "elements" ||
-      key === "properties" || key === "optionalProperties" ||
-      key === "values" || key === "discriminator" ||
-      key === "ref"
-    ) {
-      schemaFormDiscriminatorKeys.push(key);
-      if (key === "properties" || key === "optionalProperties") {
-        if (!result) {
-          result = {
-            type: "properties",
-            properties: key === "properties",
-            optionalProperties: key === "optionalProperties",
-            shared: {},
-            root: {},
-          };
-        } else if (result.type === "properties") {
-          result[key] = true;
-        } else {
-          result = { type: "ambiguous", schemaFormDiscriminatorKeys };
-        }
-      } else {
-        if (!result) {
-          result = { type: key, shared: {}, root: {} };
-        } else {
-          result = { type: "ambiguous", schemaFormDiscriminatorKeys };
-        }
-      }
-    } else {
-      restKeys.push(key);
-    }
-  }
-
-  if (!result) {
-    result = { type: "empty", shared: {}, root: {} };
-  } else if (result.type === "ambiguous") return result;
-
-  for (const key of restKeys) {
-    if (key === "nullable" || key === "metadata") {
-      result.shared[key] = true;
-    } else if (key === "definitions") {
-      result.root[key] = true;
-    } else if (result.type === "properties" && key === "additionalProperties") {
-      result.additionalProperties = true;
-    } else if (result.type === "discriminator" && key === "mapping") {
-      result.mapping = true;
-    } else {
-      (result.unrecognized ??= []).push(key);
-    }
-  }
-
-  return result;
 }
 
 function ok(
