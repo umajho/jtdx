@@ -36,7 +36,7 @@ import {
   ValidationOptions,
   ValidationOptionsForProperties,
 } from "../validating";
-import { groupSchemaKeys } from "./schema-keys";
+import { GroupedSchemaKeys, groupSchemaKeys } from "./schema-keys";
 
 export type CompilationOptions = {
   extensions: {
@@ -154,35 +154,38 @@ function compileDefinitions(
   }
 }
 
+interface CompileSubReferences {
+  options: CompilationOptions;
+  definitions: Record<string, () => InternalValidator["validate"] | null>;
+  errors: CompilationError[];
+  dependencies: Dependencies;
+}
+interface CompileSubState {
+  type?: "root" | "definition_root"; // TODO: "x:lazy_under_root".
+  mapping?: {
+    discriminator: string;
+  };
+}
+
 function compileSub(
-  schema: Schema,
+  s: Schema,
   /** sp = schema path. */
   spParent: string[],
-  refs: {
-    options: CompilationOptions;
-    definitions: Record<string, () => InternalValidator["validate"] | null>;
-    errors: CompilationError[];
-    dependencies: Dependencies;
-  },
-  state?: {
-    type?: "root" | "definition_root"; // TODO: "x:lazy_under_root".
-    mapping?: {
-      discriminator: string;
-    };
-  },
+  refs: CompileSubReferences,
+  state?: CompileSubState,
 ): InternalValidator | null {
   function pushError(sp: string[], raw: CompilationRawError) {
     refs.errors.push(makeCompilationError(sp, raw));
   }
   const isDryRun = () => refs.errors.length > 0;
 
-  const actualType = jsonTypeOf(schema);
+  const actualType = jsonTypeOf(s);
   if (actualType !== "object") {
     pushError(spParent, { type: "SCHEMA_FORM:NOT_OBJECT", actualType });
     return null;
   }
 
-  const groupedKeys = groupSchemaKeys(Object.keys(schema));
+  const groupedKeys = groupSchemaKeys(Object.keys(s));
 
   if (groupedKeys.type === "ambiguous") {
     pushError(spParent, {
@@ -200,12 +203,12 @@ function compileSub(
       });
     } else {
       if (
-        ("properties" in schema &&
-          jsonTypeOf(schema.properties) === "object" &&
-          state.mapping.discriminator in schema.properties) ||
-        ("optionalProperties" in schema &&
-          jsonTypeOf(schema.optionalProperties) === "object" &&
-          state.mapping.discriminator in schema.optionalProperties!)
+        ("properties" in s &&
+          jsonTypeOf(s.properties) === "object" &&
+          state.mapping.discriminator in s.properties) ||
+        ("optionalProperties" in s &&
+          jsonTypeOf(s.optionalProperties) === "object" &&
+          state.mapping.discriminator in s.optionalProperties!)
       ) {
         pushError(spParent, {
           type: "MAPPING:DISCRIMINATOR_AS_PROPERTY_KEY",
@@ -234,9 +237,10 @@ function compileSub(
     });
   }
 
+  // TODO!!: reimplement this with hooks.
   const opts: ValidationOptions = {};
   if (groupedKeys.shared.nullable) {
-    const isNullable = schema.nullable;
+    const isNullable = s.nullable;
     if (isNullable !== undefined) {
       const t = jsonTypeOf(isNullable);
       if (t !== "boolean") {
@@ -253,262 +257,391 @@ function compileSub(
 
   switch (groupedKeys.type) {
     case "empty":
-      if (isDryRun()) break;
+      if (isDryRun()) return null;
       return ok(() => ({ isOk: true }));
-    case "type": {
-      const sp = [...spParent, "type"];
-      const t = (schema as TypeSchema).type;
-      switch (t) {
-        case "boolean":
-          if (isDryRun()) break;
-          return ok((v, ip, refs) => validateBoolean(v, sp, ip, refs, opts));
-        case "string":
-          if (isDryRun()) break;
-          return ok((v, ip, refs) => validateString(v, sp, ip, refs, opts));
-        case "timestamp":
-          if (isDryRun()) break;
-          return ok((v, ip, refs) => validateTimestamp(v, sp, ip, refs, opts));
-        case "float32":
-        case "float64":
-          if (isDryRun()) break;
-          return ok((v, ip, refs) => validateFloat(v, t, sp, ip, refs, opts));
-        case "int8":
-        case "uint8":
-        case "int16":
-        case "uint16":
-        case "int32":
-        case "uint32":
-          const [min, max] = RANGES[t];
-
-          if (isDryRun()) break;
-          return ok((v, ip, refs) =>
-            validateInteger(v, t, min, max, sp, ip, refs, opts)
-          );
-        default:
-          if (typeof t === "string") {
-            pushError(sp, { type: "TYPE_FORM:UNKNOWN_TYPE", actualType: t });
-          } else {
-            pushError(sp, {
-              type: "TYPE_FORM:NON_STRING_TYPE",
-              actualTypeType: jsonTypeOf(t),
-            });
-          }
-          break;
-      }
-      break;
-    }
-    case "enum": {
-      const sp = [...spParent, "enum"];
-      const variants = (schema as EnumSchema).enum;
-      if (!Array.isArray(variants)) {
-        pushError(sp, {
-          type: "ENUM_FORM:NON_ARRAY_ENUM",
-          actualEnumType: jsonTypeOf(variants),
-        });
-        break;
-      } else if (variants.length === 0) {
-        pushError(sp, { type: "ENUM_FORM:EMPTY_ENUM" });
-        break;
-      } else if (variants.some((v) => typeof v !== "string")) {
-        pushError(sp, { type: "ENUM_FORM:NON_STRING_VARIANTS" });
-      }
-      const variantSet: Set<string> = new Set();
-      const duplicates: string[] = [];
-      for (const variant of variants) {
-        if (variantSet.has(variant)) {
-          duplicates.push(variant);
-        } else {
-          variantSet.add(variant);
-        }
-      }
-      if (duplicates.length) {
-        pushError(sp, {
-          type: "ENUM_FORM:DUPLICATE_VARIANTS",
-          duplicateVariants: duplicates,
-        });
-        break;
-      }
-
-      if (isDryRun()) break;
-      return ok((v, ip, refs) =>
-        validateEnum(v, variantSet, sp, ip, refs, opts)
-      );
-    }
-    case "elements": {
-      const sp = [...spParent, "elements"];
-      const elements = (schema as ElementsSchema).elements;
-      const sub = compileSub(elements, sp, refs);
-
-      if (isDryRun()) break;
-      const subFn = sub!.validate;
-      return ok((v, ip, refs) =>
-        validateElements(v, subFn, sp, ip, refs, opts)
-      );
-    }
-    case "properties": {
-      const schema_ = schema as PropertiesSchema;
-      const opts_: ValidationOptionsForProperties = opts;
-      const properties = "properties" in schema_ ? schema_.properties : null;
-      const optionalProperties = schema_.optionalProperties ?? null;
-      const additionalProperties = schema_.additionalProperties;
-
-      if (state?.mapping?.discriminator !== undefined) {
-        opts_.discriminator = state.mapping.discriminator;
-      }
-
-      const subs: PropertyValidateFunctions = {};
-
-      const requiredProperties: Set<string> = new Set();
-      if (properties !== null) {
-        const sp = [...spParent, "properties"];
-        const propertiesType = jsonTypeOf(properties);
-        if (propertiesType === "object") {
-          for (const [key, schema] of Object.entries(properties)) {
-            const sub = compileSub(schema, [...sp, key], refs);
-            if (!sub) continue;
-            subs[key] = sub.validate;
-            requiredProperties.add(key);
-          }
-        } else {
-          pushError(sp, {
-            type: "PROPERTIES_FORM:NON_OBJECT_PROPERTIES",
-            actualPropertiesType: propertiesType,
-          });
-        }
-      }
-      if (requiredProperties.size) {
-        opts_.requiredProperties = requiredProperties;
-      }
-
-      if (optionalProperties !== null) {
-        const sp = [...spParent, "optionalProperties"];
-        const optionalPropertiesType = jsonTypeOf(optionalProperties);
-        if (optionalPropertiesType === "object") {
-          const overlappedKeys: string[] = [];
-          for (const [key, schema] of Object.entries(optionalProperties)) {
-            const sub = compileSub(schema, [...sp, key], refs);
-            if (!sub) continue;
-            if (requiredProperties.has(key)) {
-              overlappedKeys.push(key);
-            } else {
-              subs[key] = sub.validate;
-            }
-          }
-          if (overlappedKeys.length) {
-            pushError(sp, {
-              type:
-                "PROPERTIES_FORM:OVERLAPPING_REQUIRED_AND_OPTIONAL_PROPERTIES",
-              keys: overlappedKeys,
-            });
-          }
-        } else {
-          pushError(sp, {
-            type: "PROPERTIES_FORM:NON_OBJECT_OPTIONAL_PROPERTIES",
-            actualOptionalPropertiesType: optionalPropertiesType,
-          });
-        }
-      }
-
-      if (additionalProperties !== undefined) {
-        const sp = [...spParent, "additionalProperties"];
-        const additionalPropertiesType = jsonTypeOf(additionalProperties);
-        if (additionalPropertiesType !== "boolean") {
-          pushError(sp, {
-            type: "PROPERTIES_FORM:NON_BOOLEAN_ADDITIONAL_PROPERTIES",
-            actualAdditionalPropertiesType: additionalPropertiesType,
-          });
-        } else if (additionalProperties) {
-          opts_.canHoldAdditionalProperties = true;
-        }
-      }
-
-      if (isDryRun()) break;
-      return ok((v, ip, refs) =>
-        validateProperties(v, subs, spParent, ip, refs, opts_)
-      );
-    }
-    case "values": {
-      const sp = [...spParent, "values"];
-      const values = (schema as ValuesSchema).values;
-      const sub = compileSub(values, sp, refs);
-
-      if (isDryRun()) break;
-      const subFn = sub!.validate;
-      return ok((v, ip, refs) => validateValues(v, subFn, sp, ip, refs, opts));
-    }
-    case "discriminator": {
-      const schema_ = schema as DiscriminatorSchema;
-      const discriminator = schema_.discriminator;
-      const mapping = schema_.mapping;
-
-      if (typeof discriminator !== "string") {
-        pushError(spParent, {
-          type: "DISCRIMINATOR_FORM:NON_STRING_DISCRIMINATOR",
-          actualDiscriminatorType: jsonTypeOf(discriminator),
-        });
-      }
-
-      if (!groupedKeys.mapping) {
-        pushError(spParent, { type: "DISCRIMINATOR_FORM:MISSING_MAPPING" });
-        break;
-      }
-      const tMapping = jsonTypeOf(mapping);
-      if (tMapping !== "object") {
-        pushError(spParent, {
-          type: "DISCRIMINATOR_FORM:NON_OBJECT_MAPPING",
-          actualMappingType: tMapping,
-        });
-        break;
-      } else if (
-        refs.options.extensions?.breaking?.["(disallow empty mappings)"] &&
-        Object.keys(mapping).length === 0
-      ) {
-        pushError(spParent, { type: "DISCRIMINATOR_FORM:EMPTY_MAPPING" });
-        break;
-      }
-
-      const subs: MappingValidateFunctions = {};
-      const subState = { mapping: { discriminator } };
-      const spMapping = [...spParent, "mapping"];
-      for (const [key, schema] of Object.entries(mapping)) {
-        const sub = compileSub(schema, [...spMapping, key], refs, subState);
-        if (!sub) continue;
-        subs[key] = sub.validate;
-      }
-
-      if (isDryRun()) break;
-      return ok((v, ip, refs) =>
-        validateDiscriminator(v, discriminator, subs, spParent, ip, refs, opts)
-      );
-    }
-    case "ref": {
-      const sp = [...spParent, "ref"];
-      const ref = (schema as RefSchema).ref;
-      if (typeof ref !== "string") {
-        pushError(sp, {
-          type: "REF_FORM:NON_STRING_REF",
-          actualRefType: jsonTypeOf(ref),
-        });
-        break;
-      }
-
-      if (!(ref in refs.definitions)) {
-        pushError(sp, { type: "REF_FORM:NO_DEFINITION", definition: ref });
-      }
-      refs.dependencies[ref] = {
-        isAtRoot: state?.type === "root" || state?.type === "definition_root",
-      };
-
-      if (isDryRun()) break;
-      const subGetter = refs.definitions[ref]!;
-      return ok((v, ip, refs) => validateRef(v, subGetter, ip, refs, opts));
-    }
+    case "type":
+      return compileSchemaOfType(s as TypeSchema, spParent, {
+        pushError,
+        isDryRun,
+        validationOptions: opts,
+      });
+    case "enum":
+      return compileSchemaOfEnum(s as EnumSchema, spParent, {
+        pushError,
+        isDryRun,
+        validationOptions: opts,
+      });
+    case "elements":
+      return compileSchemaOfElements(s as ElementsSchema, spParent, {
+        references: refs,
+        isDryRun,
+        validationOptions: opts,
+      });
+    case "properties":
+      return compileSchemaOfProperties(s as PropertiesSchema, spParent, {
+        references: refs,
+        ...(state && { state }),
+        pushError,
+        isDryRun,
+        validationOptions: opts,
+      });
+    case "values":
+      return compileSchemaOfValues(s as ValuesSchema, spParent, {
+        isDryRun,
+        references: refs,
+        validationOptions: opts,
+      });
+    case "discriminator":
+      return compileSchemaOfDiscriminator(s as DiscriminatorSchema, spParent, {
+        references: refs,
+        groupedKeys,
+        pushError,
+        isDryRun,
+        validationOptions: opts,
+      });
+    case "ref":
+      return compileSchemaOfRef(s as RefSchema, spParent, {
+        references: refs,
+        ...(state && { state }),
+        pushError,
+        isDryRun,
+        validationOptions: opts,
+      });
     default:
       groupedKeys satisfies never;
       throw new Error("unreachable");
   }
+}
 
+function compileSchemaOfType(
+  schema: TypeSchema,
+  spParent: string[],
+  opts: {
+    pushError: (sp: string[], raw: CompilationRawError) => void;
+    isDryRun: () => boolean;
+    validationOptions: ValidationOptions;
+  },
+): InternalValidator | null {
+  const sp = [...spParent, "type"];
+
+  const t = schema.type; // workaround tsc narrowing.
+  switch (t) {
+    case "boolean":
+      if (opts.isDryRun()) break;
+      return ok((v, ip, refs) =>
+        validateBoolean(v, sp, ip, refs, opts.validationOptions)
+      );
+    case "string":
+      if (opts.isDryRun()) break;
+      return ok((v, ip, refs) =>
+        validateString(v, sp, ip, refs, opts.validationOptions)
+      );
+    case "timestamp":
+      if (opts.isDryRun()) break;
+      return ok((v, ip, refs) =>
+        validateTimestamp(v, sp, ip, refs, opts.validationOptions)
+      );
+    case "float32":
+    case "float64":
+      if (opts.isDryRun()) break;
+      return ok((v, ip, refs) =>
+        validateFloat(v, t, sp, ip, refs, opts.validationOptions)
+      );
+    case "int8":
+    case "uint8":
+    case "int16":
+    case "uint16":
+    case "int32":
+    case "uint32":
+      if (opts.isDryRun()) break;
+      const [min, max] = RANGES[t];
+      return ok((v, ip, refs) =>
+        validateInteger(v, t, min, max, sp, ip, refs, opts.validationOptions)
+      );
+    default:
+      if (typeof t === "string") {
+        opts.pushError(sp, {
+          type: "TYPE_FORM:UNKNOWN_TYPE",
+          actualType: t,
+        });
+      } else {
+        opts.pushError(sp, {
+          type: "TYPE_FORM:NON_STRING_TYPE",
+          actualTypeType: jsonTypeOf(t),
+        });
+      }
+  }
   return null;
+}
+
+function compileSchemaOfEnum(
+  schema: EnumSchema,
+  spParent: string[],
+  opts: {
+    pushError: (sp: string[], raw: CompilationRawError) => void;
+    isDryRun: () => boolean;
+    validationOptions: ValidationOptions;
+  },
+): InternalValidator | null {
+  const sp = [...spParent, "enum"];
+  const variants = schema.enum;
+  if (!Array.isArray(variants)) {
+    opts.pushError(sp, {
+      type: "ENUM_FORM:NON_ARRAY_ENUM",
+      actualEnumType: jsonTypeOf(variants),
+    });
+    return null;
+  } else if (variants.length === 0) {
+    opts.pushError(sp, { type: "ENUM_FORM:EMPTY_ENUM" });
+    return null;
+  } else if (variants.some((v) => typeof v !== "string")) {
+    opts.pushError(sp, { type: "ENUM_FORM:NON_STRING_VARIANTS" });
+  }
+  const variantSet: Set<string> = new Set();
+  const duplicates: string[] = [];
+  for (const variant of variants) {
+    if (variantSet.has(variant)) {
+      duplicates.push(variant);
+    } else {
+      variantSet.add(variant);
+    }
+  }
+  if (duplicates.length) {
+    opts.pushError(sp, {
+      type: "ENUM_FORM:DUPLICATE_VARIANTS",
+      duplicateVariants: duplicates,
+    });
+    return null;
+  }
+
+  if (opts.isDryRun()) return null;
+  return ok((v, ip, refs) =>
+    validateEnum(v, variantSet, sp, ip, refs, opts.validationOptions)
+  );
+}
+
+function compileSchemaOfElements(
+  schema: ElementsSchema,
+  spParent: string[],
+  opts: {
+    references: CompileSubReferences;
+    isDryRun: () => boolean;
+    validationOptions: ValidationOptions;
+  },
+): InternalValidator | null {
+  const sp = [...spParent, "elements"];
+  const sub = compileSub(schema.elements, sp, opts.references);
+
+  if (opts.isDryRun()) return null;
+  const subFn = sub!.validate;
+  return ok((v, ip, refs) =>
+    validateElements(v, subFn, sp, ip, refs, opts.validationOptions)
+  );
+}
+
+function compileSchemaOfProperties(
+  schema: PropertiesSchema,
+  spParent: string[],
+  opts: {
+    references: CompileSubReferences;
+    state?: CompileSubState;
+    pushError: (sp: string[], raw: CompilationRawError) => void;
+    isDryRun: () => boolean;
+    validationOptions: ValidationOptions;
+  },
+): InternalValidator | null {
+  const vOpts: ValidationOptionsForProperties = opts.validationOptions;
+  const properties = "properties" in schema ? schema.properties : null;
+  const optionalProperties = schema.optionalProperties ?? null;
+  const additionalProperties = schema.additionalProperties;
+
+  if (opts.state?.mapping?.discriminator !== undefined) {
+    vOpts.discriminator = opts.state.mapping.discriminator;
+  }
+
+  const subs: PropertyValidateFunctions = {};
+
+  const requiredProperties: Set<string> = new Set();
+  if (properties !== null) {
+    const sp = [...spParent, "properties"];
+    const propertiesType = jsonTypeOf(properties);
+    if (propertiesType === "object") {
+      for (const [key, schema] of Object.entries(properties)) {
+        const sub = compileSub(schema, [...sp, key], opts.references);
+        if (!sub) continue;
+        subs[key] = sub.validate;
+        requiredProperties.add(key);
+      }
+    } else {
+      opts.pushError(sp, {
+        type: "PROPERTIES_FORM:NON_OBJECT_PROPERTIES",
+        actualPropertiesType: propertiesType,
+      });
+    }
+  }
+  if (requiredProperties.size) {
+    vOpts.requiredProperties = requiredProperties;
+  }
+
+  if (optionalProperties !== null) {
+    const sp = [...spParent, "optionalProperties"];
+    const optionalPropertiesType = jsonTypeOf(optionalProperties);
+    if (optionalPropertiesType === "object") {
+      const overlappedKeys: string[] = [];
+      for (const [key, schema] of Object.entries(optionalProperties)) {
+        const sub = compileSub(schema, [...sp, key], opts.references);
+        if (!sub) continue;
+        if (requiredProperties.has(key)) {
+          overlappedKeys.push(key);
+        } else {
+          subs[key] = sub.validate;
+        }
+      }
+      if (overlappedKeys.length) {
+        opts.pushError(sp, {
+          type: "PROPERTIES_FORM:OVERLAPPING_REQUIRED_AND_OPTIONAL_PROPERTIES",
+          keys: overlappedKeys,
+        });
+      }
+    } else {
+      opts.pushError(sp, {
+        type: "PROPERTIES_FORM:NON_OBJECT_OPTIONAL_PROPERTIES",
+        actualOptionalPropertiesType: optionalPropertiesType,
+      });
+    }
+  }
+
+  if (additionalProperties !== undefined) {
+    const sp = [...spParent, "additionalProperties"];
+    const additionalPropertiesType = jsonTypeOf(additionalProperties);
+    if (additionalPropertiesType !== "boolean") {
+      opts.pushError(sp, {
+        type: "PROPERTIES_FORM:NON_BOOLEAN_ADDITIONAL_PROPERTIES",
+        actualAdditionalPropertiesType: additionalPropertiesType,
+      });
+    } else if (additionalProperties) {
+      vOpts.canHoldAdditionalProperties = true;
+    }
+  }
+
+  if (opts.isDryRun()) return null;
+  return ok((v, ip, refs) =>
+    validateProperties(v, subs, spParent, ip, refs, vOpts)
+  );
+}
+
+function compileSchemaOfValues(
+  schema: ValuesSchema,
+  spParent: string[],
+  opts: {
+    isDryRun: () => boolean;
+    references: CompileSubReferences;
+    validationOptions: ValidationOptions;
+  },
+): InternalValidator | null {
+  const sp = [...spParent, "values"];
+  const values = (schema as ValuesSchema).values;
+  const sub = compileSub(values, sp, opts.references);
+
+  if (opts.isDryRun()) return null;
+  const subFn = sub!.validate;
+  return ok((v, ip, refs) =>
+    validateValues(v, subFn, sp, ip, refs, opts.validationOptions)
+  );
+}
+
+function compileSchemaOfDiscriminator(
+  schema: DiscriminatorSchema,
+  spParent: string[],
+  opts: {
+    references: CompileSubReferences;
+    groupedKeys: Extract<GroupedSchemaKeys, { type: "discriminator" }>;
+    pushError: (sp: string[], raw: CompilationRawError) => void;
+    isDryRun: () => boolean;
+    validationOptions: ValidationOptions;
+  },
+) {
+  const discriminator = schema.discriminator;
+  const mapping = schema.mapping;
+
+  if (typeof discriminator !== "string") {
+    opts.pushError(spParent, {
+      type: "DISCRIMINATOR_FORM:NON_STRING_DISCRIMINATOR",
+      actualDiscriminatorType: jsonTypeOf(discriminator),
+    });
+  }
+
+  if (!opts.groupedKeys.mapping) {
+    opts.pushError(spParent, { type: "DISCRIMINATOR_FORM:MISSING_MAPPING" });
+    return null;
+  }
+  const tMapping = jsonTypeOf(mapping);
+  if (tMapping !== "object") {
+    opts.pushError(spParent, {
+      type: "DISCRIMINATOR_FORM:NON_OBJECT_MAPPING",
+      actualMappingType: tMapping,
+    });
+    return null;
+  } else if (
+    opts.references.options.extensions?.breaking
+      ?.["(disallow empty mappings)"] &&
+    Object.keys(mapping).length === 0
+  ) {
+    opts.pushError(spParent, { type: "DISCRIMINATOR_FORM:EMPTY_MAPPING" });
+    return null;
+  }
+
+  const subs: MappingValidateFunctions = {};
+  const subState = { mapping: { discriminator } };
+  const spMapping = [...spParent, "mapping"];
+  for (const [key, schema] of Object.entries(mapping)) {
+    const sp = [...spMapping, key];
+    const sub = compileSub(schema, sp, opts.references, subState);
+    if (!sub) continue;
+    subs[key] = sub.validate;
+  }
+
+  if (opts.isDryRun()) return null;
+  const vOpts = opts.validationOptions;
+  return ok((v, ip, refs) =>
+    validateDiscriminator(v, discriminator, subs, spParent, ip, refs, vOpts)
+  );
+}
+
+function compileSchemaOfRef(
+  schema: RefSchema,
+  spParent: string[],
+  opts: {
+    references: CompileSubReferences;
+    state?: CompileSubState;
+    pushError: (sp: string[], raw: CompilationRawError) => void;
+    isDryRun: () => boolean;
+    validationOptions: ValidationOptions;
+  },
+) {
+  const sp = [...spParent, "ref"];
+  const ref = schema.ref;
+  if (typeof ref !== "string") {
+    opts.pushError(sp, {
+      type: "REF_FORM:NON_STRING_REF",
+      actualRefType: jsonTypeOf(ref),
+    });
+    return null;
+  }
+
+  if (!(ref in opts.references.definitions)) {
+    opts.pushError(sp, { type: "REF_FORM:NO_DEFINITION", definition: ref });
+  }
+  opts.references.dependencies[ref] = {
+    isAtRoot: opts.state?.type === "root" ||
+      opts.state?.type === "definition_root",
+  };
+
+  if (opts.isDryRun()) return null;
+  const subGetter = opts.references.definitions[ref]!;
+  return ok((v, ip, refs) =>
+    validateRef(v, subGetter, ip, refs, opts.validationOptions)
+  );
 }
 
 function ok(
