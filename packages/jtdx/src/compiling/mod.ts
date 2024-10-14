@@ -5,6 +5,7 @@ import {
   createCompilationError as makeCompilationError,
   ValidationError,
 } from "../errors";
+import { useDisallowEmptyMappings } from "../extensions/disallow-empty-mappings";
 import {
   DiscriminatorSchema,
   ElementsSchema,
@@ -36,6 +37,7 @@ import {
   ValidationOptions,
   ValidationOptionsForProperties,
 } from "../validating";
+import { createHooksBuilder, Hooks } from "./hooks";
 import { GroupedSchemaKeys, groupSchemaKeys } from "./schema-keys";
 
 export type CompilationOptions = {
@@ -63,16 +65,23 @@ export function compile(
   schema: RootSchema,
   options: CompilationOptions,
 ): CompilationResult {
+  const hooksBuilder = createHooksBuilder();
+  if (options.extensions?.breaking?.["(disallow empty mappings)"]) {
+    useDisallowEmptyMappings(hooksBuilder);
+  }
+  const hooks = hooksBuilder.build();
+
   const definitions = {};
 
   const errors: CompilationError[] = [];
   const dependencies: Dependencies = {}; // NOTE: unused.
 
   if (jsonTypeOf(schema) === "object" && "definitions" in schema) {
-    compileDefinitions(schema.definitions!, { options, definitions, errors });
+    const refs = { options, hooks, definitions, errors };
+    compileDefinitions(schema.definitions!, refs);
   }
 
-  const refs = { options, definitions, errors, dependencies };
+  const refs = { options, hooks, definitions, errors, dependencies };
   const internalValidator = //
     compileSub(schema, [], refs, { type: "root" });
   if (!internalValidator) return { isOk: false, errors };
@@ -94,6 +103,7 @@ function compileDefinitions(
   definitions: Record<string, Schema>,
   refs: {
     options: CompilationOptions;
+    hooks: Hooks;
     definitions: Record<string, () => InternalValidator["validate"]>;
     errors: CompilationError[];
   },
@@ -125,6 +135,7 @@ function compileDefinitions(
     const dependencies: Dependencies = {};
     const subRefs = {
       options: refs.options,
+      hooks: refs.hooks,
       definitions: refs.definitions,
       errors: refs.errors,
       dependencies,
@@ -156,6 +167,7 @@ function compileDefinitions(
 
 interface CompileSubReferences {
   options: CompilationOptions;
+  hooks: Hooks;
   definitions: Record<string, () => InternalValidator["validate"] | null>;
   errors: CompilationError[];
   dependencies: Dependencies;
@@ -171,13 +183,13 @@ function compileSub(
   s: Schema,
   /** sp = schema path. */
   spParent: string[],
-  refs: CompileSubReferences,
+  references: CompileSubReferences,
   state?: CompileSubState,
 ): InternalValidator | null {
   function pushError(sp: string[], raw: CompilationRawError) {
-    refs.errors.push(makeCompilationError(sp, raw));
+    references.errors.push(makeCompilationError(sp, raw));
   }
-  const isDryRun = () => refs.errors.length > 0;
+  const isDryRun = () => references.errors.length > 0;
 
   const actualType = jsonTypeOf(s);
   if (actualType !== "object") {
@@ -237,8 +249,7 @@ function compileSub(
     });
   }
 
-  // TODO!!: reimplement this with hooks.
-  const opts: ValidationOptions = {};
+  const validationOptions: ValidationOptions = {};
   if (groupedKeys.shared.nullable) {
     const isNullable = s.nullable;
     if (isNullable !== undefined) {
@@ -250,7 +261,7 @@ function compileSub(
         });
       }
       if (isNullable) {
-        opts.isNullable = true;
+        validationOptions.isNullable = true;
       }
     }
   }
@@ -263,49 +274,49 @@ function compileSub(
       return compileSchemaOfType(s as TypeSchema, spParent, {
         pushError,
         isDryRun,
-        validationOptions: opts,
+        validationOptions,
       });
     case "enum":
       return compileSchemaOfEnum(s as EnumSchema, spParent, {
         pushError,
         isDryRun,
-        validationOptions: opts,
+        validationOptions,
       });
     case "elements":
       return compileSchemaOfElements(s as ElementsSchema, spParent, {
-        references: refs,
+        references,
         isDryRun,
-        validationOptions: opts,
+        validationOptions,
       });
     case "properties":
       return compileSchemaOfProperties(s as PropertiesSchema, spParent, {
-        references: refs,
+        references,
         ...(state && { state }),
         pushError,
         isDryRun,
-        validationOptions: opts,
+        validationOptions,
       });
     case "values":
       return compileSchemaOfValues(s as ValuesSchema, spParent, {
+        references,
         isDryRun,
-        references: refs,
-        validationOptions: opts,
+        validationOptions,
       });
     case "discriminator":
       return compileSchemaOfDiscriminator(s as DiscriminatorSchema, spParent, {
-        references: refs,
+        references,
         groupedKeys,
         pushError,
         isDryRun,
-        validationOptions: opts,
+        validationOptions,
       });
     case "ref":
       return compileSchemaOfRef(s as RefSchema, spParent, {
-        references: refs,
+        references,
         ...(state && { state }),
         pushError,
         isDryRun,
-        validationOptions: opts,
+        validationOptions,
       });
     default:
       groupedKeys satisfies never;
@@ -534,8 +545,8 @@ function compileSchemaOfValues(
   schema: ValuesSchema,
   spParent: string[],
   opts: {
-    isDryRun: () => boolean;
     references: CompileSubReferences;
+    isDryRun: () => boolean;
     validationOptions: ValidationOptions;
   },
 ): InternalValidator | null {
@@ -582,13 +593,10 @@ function compileSchemaOfDiscriminator(
       actualMappingType: tMapping,
     });
     return null;
-  } else if (
-    opts.references.options.extensions?.breaking
-      ?.["(disallow empty mappings)"] &&
-    Object.keys(mapping).length === 0
-  ) {
-    opts.pushError(spParent, { type: "DISCRIMINATOR_FORM:EMPTY_MAPPING" });
-    return null;
+  }
+
+  for (const hook of opts.references.hooks.discriminator) {
+    hook(schema, { pushError: (raw) => opts.pushError(spParent, raw) });
   }
 
   const subs: MappingValidateFunctions = {};
