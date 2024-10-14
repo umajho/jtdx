@@ -9,7 +9,7 @@ export interface Hooks {
   discriminator: ((schema: DiscriminatorSchema, opts: Options) => void)[];
 }
 
-export type HooksBUilder = ReturnType<typeof createHooksBuilder>;
+export type HooksBuilder = ReturnType<typeof createHooksBuilder>;
 
 export function createHooksBuilder() {
   let hooks: Hooks | null = {
