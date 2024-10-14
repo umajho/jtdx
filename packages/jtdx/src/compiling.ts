@@ -62,7 +62,7 @@ export function compile(
   schema: RootSchema,
   options: CompilationOptions,
 ): CompilationResult {
-  const definitions = {}; // TODO!!
+  const definitions = {};
 
   const errors: CompilationError[] = [];
   const dependencies: Dependencies = {}; // NOTE: unused.
@@ -250,7 +250,6 @@ function compileSub(
     }
   }
 
-  // TODO!!!: handle nullable
   switch (groupedKeys.type) {
     case "empty":
       if (isDryRun()) break;
