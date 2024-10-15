@@ -18,6 +18,7 @@ export function jsonTypeOf(v: any): JSONType {
       if (Array.isArray(v)) return "array";
       return "object";
     default:
+      // TODO!!: should not throw. (return `"not_json"`?)
       throw new Error("unreachable");
   }
 }
