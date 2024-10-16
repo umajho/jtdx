@@ -59,7 +59,7 @@ if (!validationResult.isOk) {
 console.log("Validation succeeded!");
 ```
 
-## Breaking Extension `/breaking/(disallow empty mappings)`
+## Breaking Extension `(disallow empty mappings)`
 
 ```diff
   const compilationResult = compile(schema, {
