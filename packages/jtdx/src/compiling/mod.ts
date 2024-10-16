@@ -6,9 +6,11 @@ import {
   ValidationError,
 } from "../errors";
 import { useDisallowEmptyMappings } from "../extensions/disallow-empty-mappings";
+import { useXChecks } from "../extensions/x-checks/mod";
 import {
   DiscriminatorSchema,
   ElementsSchema,
+  EmptySchema,
   EnumSchema,
   PropertiesSchema,
   RefSchema,
@@ -26,6 +28,7 @@ import {
   validateBoolean,
   validateDiscriminator,
   validateElements,
+  validateEmpty,
   validateEnum,
   validateFloat,
   validateInteger,
@@ -37,16 +40,23 @@ import {
   ValidationOptions,
   ValidationOptionsForProperties,
 } from "../validating";
-import { createHooksBuilder, Hooks } from "./hooks";
+import { createExtensionContext } from "./extension-context";
+import { Hooks, runHooks } from "./hooks";
 import { GroupedSchemaKeys, groupSchemaKeys } from "./schema-keys";
 
-export type CompilationOptions = {
+export interface CompilationOptions {
   extensions: {
     breaking: {
-      "(disallow empty mappings)": boolean;
+      "(disallow empty mappings)"?: boolean;
+      "x:checks"?: boolean;
     } | null;
   } | null;
-};
+}
+
+interface InternalCompilationOptions extends CompilationOptions {
+  hooks: Hooks;
+  additionalPropertyNames: Set<string>;
+}
 
 export type CompilationResult =
   | { isOk: true; validator: Validator }
@@ -63,25 +73,45 @@ type Dependencies = Record<string, { isAtRoot: boolean }>;
 
 export function compile(
   schema: RootSchema,
-  options: CompilationOptions,
+  opts: CompilationOptions,
 ): CompilationResult {
-  const hooksBuilder = createHooksBuilder();
-  if (options.extensions?.breaking?.["(disallow empty mappings)"]) {
-    useDisallowEmptyMappings(hooksBuilder);
-  }
-  const hooks = hooksBuilder.build();
+  const { hooks, additionalPropertyNames } = (() => {
+    const { context, finalize } = createExtensionContext();
+    if (opts.extensions?.breaking?.["(disallow empty mappings)"]) {
+      useDisallowEmptyMappings(context);
+    }
+    if (opts.extensions?.breaking?.["x:checks"]) {
+      useXChecks(context);
+    }
+    return finalize();
+  })();
 
-  const definitions = {};
+  const iOpts: InternalCompilationOptions = {
+    ...opts,
+    hooks,
+    additionalPropertyNames,
+  };
+
+  const definitions: Record<string, () => InternalValidator["validate"]> = {};
 
   const errors: CompilationError[] = [];
   const dependencies: Dependencies = {}; // NOTE: unused.
 
   if (jsonTypeOf(schema) === "object" && "definitions" in schema) {
-    const refs = { options, hooks, definitions, errors };
+    const refs: CompileDefinitionsReferences = {
+      options: iOpts,
+      definitions,
+      errors,
+    };
     compileDefinitions(schema.definitions!, refs);
   }
 
-  const refs = { options, hooks, definitions, errors, dependencies };
+  const refs: CompileSubReferences = {
+    options: iOpts,
+    definitions,
+    errors,
+    dependencies,
+  };
   const internalValidator = //
     compileSub(schema, [], refs, { type: "root" });
   if (!internalValidator) return { isOk: false, errors };
@@ -99,14 +129,15 @@ export function compile(
   return { isOk: true, validator };
 }
 
+interface CompileDefinitionsReferences {
+  options: InternalCompilationOptions;
+  definitions: Record<string, () => InternalValidator["validate"]>;
+  errors: CompilationError[];
+}
+
 function compileDefinitions(
   definitions: Record<string, Schema>,
-  refs: {
-    options: CompilationOptions;
-    hooks: Hooks;
-    definitions: Record<string, () => InternalValidator["validate"]>;
-    errors: CompilationError[];
-  },
+  refs: CompileDefinitionsReferences,
 ) {
   function pushError(sp: string[], raw: CompilationRawError) {
     refs.errors.push(makeCompilationError(sp, raw));
@@ -133,13 +164,7 @@ function compileDefinitions(
 
   for (const [name, schema] of Object.entries(definitions)) {
     const dependencies: Dependencies = {};
-    const subRefs = {
-      options: refs.options,
-      hooks: refs.hooks,
-      definitions: refs.definitions,
-      errors: refs.errors,
-      dependencies,
-    };
+    const subRefs: CompileSubReferences = { ...refs, dependencies };
     const sub = compileSub(schema, ["definitions", name], subRefs, {
       type: "definition_root",
     });
@@ -166,9 +191,8 @@ function compileDefinitions(
 }
 
 interface CompileSubReferences {
-  options: CompilationOptions;
-  hooks: Hooks;
-  definitions: Record<string, () => InternalValidator["validate"] | null>;
+  options: InternalCompilationOptions;
+  definitions: Record<string, () => InternalValidator["validate"]>;
   errors: CompilationError[];
   dependencies: Dependencies;
 }
@@ -197,7 +221,7 @@ function compileSub(
     return null;
   }
 
-  const groupedKeys = groupSchemaKeys(Object.keys(s));
+  const groupedKeys = groupSchemaKeys(Object.keys(s), references.options);
 
   if (groupedKeys.type === "ambiguous") {
     pushError(spParent, {
@@ -266,74 +290,93 @@ function compileSub(
     }
   }
 
+  const deeperOpts = {
+    references,
+    ...(state && { state }),
+    pushError,
+    isDryRun,
+    validationOptions,
+  };
+
   switch (groupedKeys.type) {
     case "empty":
-      if (isDryRun()) return null;
-      return ok(() => ({ isOk: true }));
+      return compileSchemaOfEmpty(s as EmptySchema, spParent, deeperOpts);
     case "type":
-      return compileSchemaOfType(s as TypeSchema, spParent, {
-        pushError,
-        isDryRun,
-        validationOptions,
-      });
+      return compileSchemaOfType(s as TypeSchema, spParent, deeperOpts);
     case "enum":
-      return compileSchemaOfEnum(s as EnumSchema, spParent, {
-        pushError,
-        isDryRun,
-        validationOptions,
-      });
+      return compileSchemaOfEnum(s as EnumSchema, spParent, deeperOpts);
     case "elements":
-      return compileSchemaOfElements(s as ElementsSchema, spParent, {
-        references,
-        isDryRun,
-        validationOptions,
-      });
+      return compileSchemaOfElements(s as ElementsSchema, spParent, deeperOpts);
     case "properties":
-      return compileSchemaOfProperties(s as PropertiesSchema, spParent, {
-        references,
-        ...(state && { state }),
-        pushError,
-        isDryRun,
-        validationOptions,
-      });
+      return compileSchemaOfProperties(
+        s as PropertiesSchema,
+        spParent,
+        deeperOpts,
+      );
     case "values":
-      return compileSchemaOfValues(s as ValuesSchema, spParent, {
-        references,
-        isDryRun,
-        validationOptions,
-      });
+      return compileSchemaOfValues(s as ValuesSchema, spParent, deeperOpts);
     case "discriminator":
       return compileSchemaOfDiscriminator(s as DiscriminatorSchema, spParent, {
-        references,
+        ...deeperOpts,
         groupedKeys,
-        pushError,
-        isDryRun,
-        validationOptions,
       });
     case "ref":
-      return compileSchemaOfRef(s as RefSchema, spParent, {
-        references,
-        ...(state && { state }),
-        pushError,
-        isDryRun,
-        validationOptions,
-      });
+      return compileSchemaOfRef(s as RefSchema, spParent, deeperOpts);
     default:
       groupedKeys satisfies never;
       throw new Error("unreachable");
   }
 }
 
+function compileSchemaOfEmpty(
+  schema: EmptySchema,
+  spParent: string[],
+  opts: {
+    references: CompileSubReferences;
+    pushError: (sp: string[], raw: CompilationRawError) => void;
+    isDryRun: () => boolean;
+    validationOptions: ValidationOptions;
+  },
+) {
+  const sp = [...spParent, "type"];
+
+  const supFns = runHooks(
+    opts.references.options.hooks,
+    "empty",
+    schema,
+    { pushError: (raw) => opts.pushError(spParent, raw) },
+  );
+  if (supFns) {
+    opts.validationOptions.supplementalValidateFunctions = supFns;
+  }
+
+  if (opts.isDryRun()) return null;
+  return ok((v, ip, refs) =>
+    validateEmpty(v, sp, ip, refs, opts.validationOptions)
+  );
+}
+
 function compileSchemaOfType(
   schema: TypeSchema,
   spParent: string[],
   opts: {
+    references: CompileSubReferences;
     pushError: (sp: string[], raw: CompilationRawError) => void;
     isDryRun: () => boolean;
     validationOptions: ValidationOptions;
   },
 ): InternalValidator | null {
   const sp = [...spParent, "type"];
+
+  const supFns = runHooks(
+    opts.references.options.hooks,
+    "type",
+    schema,
+    { pushError: (raw) => opts.pushError(spParent, raw) },
+  );
+  if (supFns) {
+    opts.validationOptions.supplementalValidateFunctions = supFns;
+  }
 
   const t = schema.type; // workaround tsc narrowing.
   switch (t) {
@@ -389,6 +432,7 @@ function compileSchemaOfEnum(
   schema: EnumSchema,
   spParent: string[],
   opts: {
+    references: CompileSubReferences;
     pushError: (sp: string[], raw: CompilationRawError) => void;
     isDryRun: () => boolean;
     validationOptions: ValidationOptions;
@@ -425,6 +469,16 @@ function compileSchemaOfEnum(
     return null;
   }
 
+  const supFns = runHooks(
+    opts.references.options.hooks,
+    "enum",
+    schema,
+    { pushError: (raw) => opts.pushError(spParent, raw) },
+  );
+  if (supFns) {
+    opts.validationOptions.supplementalValidateFunctions = supFns;
+  }
+
   if (opts.isDryRun()) return null;
   return ok((v, ip, refs) =>
     validateEnum(v, variantSet, sp, ip, refs, opts.validationOptions)
@@ -436,11 +490,23 @@ function compileSchemaOfElements(
   spParent: string[],
   opts: {
     references: CompileSubReferences;
+    pushError: (sp: string[], raw: CompilationRawError) => void;
     isDryRun: () => boolean;
     validationOptions: ValidationOptions;
   },
 ): InternalValidator | null {
   const sp = [...spParent, "elements"];
+
+  const supFns = runHooks(
+    opts.references.options.hooks,
+    "elements",
+    schema,
+    { pushError: (raw) => opts.pushError(spParent, raw) },
+  );
+  if (supFns) {
+    opts.validationOptions.supplementalValidateFunctions = supFns;
+  }
+
   const sub = compileSub(schema.elements, sp, opts.references);
 
   if (opts.isDryRun()) return null;
@@ -470,7 +536,7 @@ function compileSchemaOfProperties(
     vOpts.discriminator = opts.state.mapping.discriminator;
   }
 
-  const subs: PropertyValidateFunctions = {};
+  const subsToCompile: Record<string, () => ReturnType<typeof compileSub>> = {};
 
   const requiredProperties: Set<string> = new Set();
   if (properties !== null) {
@@ -478,9 +544,8 @@ function compileSchemaOfProperties(
     const propertiesType = jsonTypeOf(properties);
     if (propertiesType === "object") {
       for (const [key, schema] of Object.entries(properties)) {
-        const sub = compileSub(schema, [...sp, key], opts.references);
-        if (!sub) continue;
-        subs[key] = sub.validate;
+        subsToCompile[key] = () =>
+          compileSub(schema, [...sp, key], opts.references);
         requiredProperties.add(key);
       }
     } else {
@@ -500,12 +565,10 @@ function compileSchemaOfProperties(
     if (optionalPropertiesType === "object") {
       const overlappedKeys: string[] = [];
       for (const [key, schema] of Object.entries(optionalProperties)) {
-        const sub = compileSub(schema, [...sp, key], opts.references);
-        if (!sub) continue;
+        subsToCompile[key] = () =>
+          compileSub(schema, [...sp, key], opts.references);
         if (requiredProperties.has(key)) {
           overlappedKeys.push(key);
-        } else {
-          subs[key] = sub.validate;
         }
       }
       if (overlappedKeys.length) {
@@ -535,6 +598,23 @@ function compileSchemaOfProperties(
     }
   }
 
+  const supFns = runHooks(
+    opts.references.options.hooks,
+    "properties",
+    schema,
+    { pushError: (raw) => opts.pushError(spParent, raw) },
+  );
+  if (supFns) {
+    opts.validationOptions.supplementalValidateFunctions = supFns;
+  }
+
+  const subs: PropertyValidateFunctions = {};
+  for (const [key, compile] of Object.entries(subsToCompile)) {
+    const sub = compile();
+    if (!sub) continue;
+    subs[key] = sub.validate;
+  }
+
   if (opts.isDryRun()) return null;
   return ok((v, ip, refs) =>
     validateProperties(v, subs, spParent, ip, refs, vOpts)
@@ -546,12 +626,24 @@ function compileSchemaOfValues(
   spParent: string[],
   opts: {
     references: CompileSubReferences;
+    pushError: (sp: string[], raw: CompilationRawError) => void;
     isDryRun: () => boolean;
     validationOptions: ValidationOptions;
   },
 ): InternalValidator | null {
   const sp = [...spParent, "values"];
   const values = (schema as ValuesSchema).values;
+
+  const supFns = runHooks(
+    opts.references.options.hooks,
+    "values",
+    schema,
+    { pushError: (raw) => opts.pushError(spParent, raw) },
+  );
+  if (supFns) {
+    opts.validationOptions.supplementalValidateFunctions = supFns;
+  }
+
   const sub = compileSub(values, sp, opts.references);
 
   if (opts.isDryRun()) return null;
@@ -595,8 +687,14 @@ function compileSchemaOfDiscriminator(
     return null;
   }
 
-  for (const hook of opts.references.hooks.discriminator) {
-    hook(schema, { pushError: (raw) => opts.pushError(spParent, raw) });
+  const supFns = runHooks(
+    opts.references.options.hooks,
+    "discriminator",
+    schema,
+    { pushError: (raw) => opts.pushError(spParent, raw) },
+  );
+  if (supFns) {
+    opts.validationOptions.supplementalValidateFunctions = supFns;
   }
 
   const subs: MappingValidateFunctions = {};
@@ -645,10 +743,20 @@ function compileSchemaOfRef(
       opts.state?.type === "definition_root",
   };
 
+  const supFns = runHooks(
+    opts.references.options.hooks,
+    "ref",
+    schema,
+    { pushError: (raw) => opts.pushError(spParent, raw) },
+  );
+  if (supFns) {
+    opts.validationOptions.supplementalValidateFunctions = supFns;
+  }
+
   if (opts.isDryRun()) return null;
   const subGetter = opts.references.definitions[ref]!;
   return ok((v, ip, refs) =>
-    validateRef(v, subGetter, ip, refs, opts.validationOptions)
+    validateRef(v, subGetter, sp, ip, refs, opts.validationOptions)
   );
 }
 

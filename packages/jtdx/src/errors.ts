@@ -1,3 +1,8 @@
+import { CompilationRawErrorByExtensionDisallowEmptyMappings } from "./extensions/disallow-empty-mappings";
+import {
+  CompilationRawErrorByExtensionXChecks,
+  ValidationRawErrorByExtensionXChecks,
+} from "./extensions/x-checks/errors";
 import {
   SchemaType as SchemaForm,
   TypeSchemaType,
@@ -95,12 +100,8 @@ export type CompilationRawError =
     type: "DEFINITIONS:NOOP_CIRCULAR_REFERENCES_DETECTED";
     definitionsInCycle: string[];
   }
-  | CompilationRawErrorExtra;
-
-type CompilationRawErrorExtra =
-  // Enabled by extension `breaking/(disallow empty mappings)`.
-  // e.g. `{ "discriminator": "foo", "mapping": {} }`.
-  { type: "DISCRIMINATOR_FORM:EMPTY_MAPPING" };
+  | CompilationRawErrorByExtensionDisallowEmptyMappings
+  | CompilationRawErrorByExtensionXChecks;
 
 export interface ValidationError {
   instancePath: string[];
@@ -144,4 +145,5 @@ export type ValidationRawError =
   | {
     type: "DISCRIMINATOR_FORM:INVALID_DISCRIMINATOR_VALUE";
     actualDiscriminatorValue: string;
-  };
+  }
+  | ValidationRawErrorByExtensionXChecks;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import "../test-support/mod";
+import "../test-support/init";
 
 import officialValidationJson from "../../../third-party/json-typedef-spec/tests/validation.json" assert {
   type: "json",

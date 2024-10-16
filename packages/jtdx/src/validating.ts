@@ -1,3 +1,7 @@
+import {
+  runSupplementalValidateFunctions,
+  SupplementalValidateFunction,
+} from "./compiling/hooks";
 import { ValidationError, ValidationRawError } from "./errors";
 import { TypeSchemaTypeInteger } from "./types";
 import isRFC3339 from "./utils/isRFC3339";
@@ -17,6 +21,20 @@ export interface ValidationReferences {
 
 export interface ValidationOptions {
   isNullable?: true;
+  supplementalValidateFunctions?: SupplementalValidateFunction[];
+}
+
+export function validateEmpty(
+  v: any,
+  schemaPath: string[],
+  instancePath: string[],
+  refs: ValidationReferences,
+  opts: ValidationOptions,
+) {
+  opts.supplementalValidateFunctions &&
+    runSupplementalValidateFunctions(opts.supplementalValidateFunctions, v, {
+      pushError: (raw) => pushError(schemaPath, instancePath, refs, raw),
+    });
 }
 
 export function validateBoolean(
@@ -28,12 +46,19 @@ export function validateBoolean(
 ) {
   if (opts.isNullable && v === null) return;
   const t = jsonTypeOf(v);
-  if (t === "boolean") return;
-  pushError(schemaPath, instancePath, refs, {
-    type: "TYPE_FORM:TYPE_MISMATCH",
-    expectedType: "boolean",
-    actualType: t,
-  });
+  if (t !== "boolean") {
+    pushError(schemaPath, instancePath, refs, {
+      type: "TYPE_FORM:TYPE_MISMATCH",
+      expectedType: "boolean",
+      actualType: t,
+    });
+    return;
+  }
+
+  opts.supplementalValidateFunctions &&
+    runSupplementalValidateFunctions(opts.supplementalValidateFunctions, v, {
+      pushError: (raw) => pushError(schemaPath, instancePath, refs, raw),
+    });
 }
 
 export function validateString(
@@ -45,12 +70,19 @@ export function validateString(
 ) {
   if (opts.isNullable && v === null) return;
   const t = jsonTypeOf(v);
-  if (t === "string") return;
-  pushError(schemaPath, instancePath, refs, {
-    type: "TYPE_FORM:TYPE_MISMATCH",
-    expectedType: "string",
-    actualType: t,
-  });
+  if (t !== "string") {
+    pushError(schemaPath, instancePath, refs, {
+      type: "TYPE_FORM:TYPE_MISMATCH",
+      expectedType: "string",
+      actualType: t,
+    });
+    return;
+  }
+
+  opts.supplementalValidateFunctions &&
+    runSupplementalValidateFunctions(opts.supplementalValidateFunctions, v, {
+      pushError: (raw) => pushError(schemaPath, instancePath, refs, raw),
+    });
 }
 
 export function validateTimestamp(
@@ -62,12 +94,19 @@ export function validateTimestamp(
 ) {
   if (opts.isNullable && v === null) return;
   const t = jsonTypeOf(v);
-  if (t === "string" && isRFC3339(v)) return;
-  pushError(schemaPath, instancePath, refs, {
-    type: "TYPE_FORM:TYPE_MISMATCH",
-    expectedType: "timestamp",
-    actualType: t,
-  });
+  if (t !== "string" || !isRFC3339(v)) {
+    pushError(schemaPath, instancePath, refs, {
+      type: "TYPE_FORM:TYPE_MISMATCH",
+      expectedType: "timestamp",
+      actualType: t,
+    });
+    return;
+  }
+
+  opts.supplementalValidateFunctions &&
+    runSupplementalValidateFunctions(opts.supplementalValidateFunctions, v, {
+      pushError: (raw) => pushError(schemaPath, instancePath, refs, raw),
+    });
 }
 
 export function validateFloat(
@@ -80,12 +119,19 @@ export function validateFloat(
 ) {
   if (opts.isNullable && v === null) return;
   const t = jsonTypeOf(v);
-  if (t === "number") return;
-  pushError(schemaPath, instancePath, refs, {
-    type: "TYPE_FORM:TYPE_MISMATCH",
-    expectedType: which,
-    actualType: t,
-  });
+  if (t !== "number") {
+    pushError(schemaPath, instancePath, refs, {
+      type: "TYPE_FORM:TYPE_MISMATCH",
+      expectedType: which,
+      actualType: t,
+    });
+    return;
+  }
+
+  opts.supplementalValidateFunctions &&
+    runSupplementalValidateFunctions(opts.supplementalValidateFunctions, v, {
+      pushError: (raw) => pushError(schemaPath, instancePath, refs, raw),
+    });
 }
 
 export function validateInteger(
@@ -125,6 +171,11 @@ export function validateInteger(
     });
     return;
   }
+
+  opts.supplementalValidateFunctions &&
+    runSupplementalValidateFunctions(opts.supplementalValidateFunctions, v, {
+      pushError: (raw) => pushError(schemaPath, instancePath, refs, raw),
+    });
 }
 
 export function validateEnum(
@@ -148,6 +199,11 @@ export function validateEnum(
       actualValue: v,
     });
   }
+
+  opts.supplementalValidateFunctions &&
+    runSupplementalValidateFunctions(opts.supplementalValidateFunctions, v, {
+      pushError: (raw) => pushError(schemaPath, instancePath, refs, raw),
+    });
 }
 
 export function validateElements(
@@ -167,6 +223,12 @@ export function validateElements(
     });
     return;
   }
+
+  opts.supplementalValidateFunctions &&
+    runSupplementalValidateFunctions(opts.supplementalValidateFunctions, v, {
+      pushError: (raw) => pushError(schemaPath, instancePath, refs, raw),
+    });
+
   for (const [i, el] of v.entries()) {
     subValidateFn(el, [...instancePath, "" + i], refs);
   }
@@ -208,6 +270,7 @@ export function validateProperties(
   }
   const seenRequired = new Set<string>();
   const unexpectedAdditionalPropertyKeys: string[] = [];
+  const subsToRun: (() => void)[] = [];
   for (const [key, value] of Object.entries(v)) {
     const subFn = subValidateFns[key];
     if (!subFn) {
@@ -223,7 +286,7 @@ export function validateProperties(
     if (isRequired) {
       seenRequired.add(key);
     }
-    subFn(value, [...instancePath, key], refs);
+    subsToRun.push(() => subFn(value, [...instancePath, key], refs));
   }
   if (seenRequired.size < (opts.requiredProperties?.size ?? 0)) {
     const missingKeys = [...opts.requiredProperties!.values()]
@@ -242,6 +305,15 @@ export function validateProperties(
         key,
       });
     }
+  }
+
+  opts.supplementalValidateFunctions &&
+    runSupplementalValidateFunctions(opts.supplementalValidateFunctions, v, {
+      pushError: (raw) => pushError(schemaPath, instancePath, refs, raw),
+    });
+
+  for (const subToRun of subsToRun) {
+    subToRun();
   }
 }
 
@@ -262,6 +334,12 @@ export function validateValues(
     });
     return;
   }
+
+  opts.supplementalValidateFunctions &&
+    runSupplementalValidateFunctions(opts.supplementalValidateFunctions, v, {
+      pushError: (raw) => pushError(schemaPath, instancePath, refs, raw),
+    });
+
   for (const [key, value] of Object.entries(v)) {
     subValidateFn(value, [...instancePath, key], refs);
   }
@@ -326,17 +404,29 @@ export function validateDiscriminator(
     return;
   }
 
+  opts.supplementalValidateFunctions &&
+    runSupplementalValidateFunctions(opts.supplementalValidateFunctions, v, {
+      pushError: (raw) => pushError(schemaPath, instancePath, refs, raw),
+    });
+
   subFn(v, instancePath, refs);
 }
 
 export function validateRef(
   v: any,
   subValidateFnGetter: () => InternalValidator["validate"] | null,
+  schemaPath: string[],
   instancePath: string[],
   refs: ValidationReferences,
   opts: ValidationOptions,
 ) {
   if (opts.isNullable && v === null) return;
+
+  opts.supplementalValidateFunctions &&
+    runSupplementalValidateFunctions(opts.supplementalValidateFunctions, v, {
+      pushError: (raw) => pushError(schemaPath, instancePath, refs, raw),
+    });
+
   const subValidateFn = subValidateFnGetter();
   subValidateFn!(v, instancePath, refs);
 }

@@ -1,3 +1,10 @@
+import {
+  WithXChecksForElementsSchema,
+  WithXChecksForPropertiesSchema,
+  WithXChecksForTypeSchema,
+  WithXChecksForValuesSchema,
+} from "./extensions/x-checks/types";
+
 export type Schema =
   | EmptySchema
   | TypeSchema
@@ -22,29 +29,39 @@ export type RootSchema = Schema & {
   definitions?: Record<string, Schema>;
 };
 
-export type EmptySchema = Record<string, never>;
+export type EmptySchema = Record<string, never> & SharedProperties;
 
-export type TypeSchema = {
-  type: TypeSchemaType;
-} & SharedProperties;
+export type TypeSchema =
+  & { type: TypeSchemaType }
+  & SharedProperties
+  & WithXChecksForTypeSchema;
+
+export const typeSchemaTypeInteger = [
+  ...["int8", "uint8", "int16"],
+  ...["uint16", "int32", "uint32"],
+] as const;
+export type TypeSchemaTypeInteger = (typeof typeSchemaTypeInteger)[number];
+export const typeSchemaTypeNumeric = [
+  ...typeSchemaTypeInteger,
+  ...["float32", "float64"],
+] as const;
+export type TypeSchemaTypeNumeric = (typeof typeSchemaTypeNumeric)[number];
+export const typeSchemaTypeBoundable = [
+  ...typeSchemaTypeNumeric,
+  ...["timestamp"],
+] as const;
+export type TypeSchemaTypeBoundable = (typeof typeSchemaTypeBoundable)[number];
 export type TypeSchemaType =
   | "boolean"
   | "string"
-  | "timestamp"
-  | "float32"
-  | "float64"
-  | TypeSchemaTypeInteger;
-export type TypeSchemaTypeInteger =
-  | "int8"
-  | "uint8"
-  | "int16"
-  | "uint16"
-  | "int32"
-  | "uint32";
+  | TypeSchemaTypeBoundable;
 
 export type EnumSchema = { enum: string[] } & SharedProperties;
 
-export type ElementsSchema = { elements: Schema } & SharedProperties;
+export type ElementsSchema =
+  & { elements: Schema }
+  & SharedProperties
+  & WithXChecksForElementsSchema;
 
 export type PropertiesSchemaBase =
   & (
@@ -54,12 +71,16 @@ export type PropertiesSchemaBase =
     }
     | { optionalProperties: Record<string, Schema> }
   )
-  & { additionalProperties?: boolean };
+  & { additionalProperties?: boolean }
+  & WithXChecksForPropertiesSchema;
 // `type PropertiesSchema<IsMapping = false>` results in `Type alias 'Schema'
 // circularly references itself`. (TypeScript 5.5.4)
 export type PropertiesSchema = PropertiesSchemaBase & SharedProperties;
 
-export type ValuesSchema = { values: Schema } & SharedProperties;
+export type ValuesSchema =
+  & { values: Schema }
+  & SharedProperties
+  & WithXChecksForValuesSchema;
 
 export type DiscriminatorSchema = {
   discriminator: string;
@@ -68,6 +89,6 @@ export type DiscriminatorSchema = {
 
 export type RefSchema = { ref: string } & SharedProperties;
 
-export type SharedProperties<IsMapping = false> = {
-  metadata?: Record<string, unknown>;
-} & (IsMapping extends true ? {} : { nullable?: boolean });
+export type SharedProperties<IsMapping = false> =
+  & { metadata?: Record<string, unknown> }
+  & (IsMapping extends true ? {} : { nullable?: boolean });

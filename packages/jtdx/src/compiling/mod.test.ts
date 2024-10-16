@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { CompilationOptions, compile } from "./mod";
+import { expectError } from "../../test-support/utils";
+
+import { compile } from "./mod";
 
 import officialInvalidSchemasJson from "../../../../third-party/json-typedef-spec/tests/invalid_schemas.json" assert {
   type: "json",
 };
-import { Schema } from "../types";
-import { CompilationError } from "../errors";
 
 describe("Official", () => {
   for (const [name, schema] of Object.entries(officialInvalidSchemasJson)) {
@@ -24,7 +24,7 @@ describe("Errors", () => {
     describe("SCHEMA_FORM:AMBIGUOUS", () => {
       it("case 1", () => {
         expectError(
-          { type: "string", properties: {} },
+          { type: "string", properties: {} } as any,
           [{
             schemaPath: [],
             raw: {
@@ -395,41 +395,4 @@ describe("Errors", () => {
       });
     });
   });
-
-  describe("Breaking Extensions: (disallow empty mappings)", () => {
-    it("works", () => {
-      const schema: Schema = { discriminator: "foo", mapping: {} };
-
-      expect(compile(schema, { extensions: null }).isOk).toBe(true);
-
-      expectError(
-        schema,
-        [{
-          schemaPath: [],
-          raw: { type: "DISCRIMINATOR_FORM:EMPTY_MAPPING" },
-        }],
-        {
-          compilationOptions: {
-            extensions: {
-              breaking: {
-                "(disallow empty mappings)": true,
-              },
-            },
-          },
-        },
-      );
-    });
-  });
 });
-
-function expectError(
-  schema: Schema,
-  errors: CompilationError[],
-  opts?: {
-    compilationOptions: CompilationOptions;
-  },
-) {
-  const compOpts = opts?.compilationOptions ?? { extensions: null };
-
-  expect(compile(schema, compOpts)).toEqual({ isOk: false, errors });
-}

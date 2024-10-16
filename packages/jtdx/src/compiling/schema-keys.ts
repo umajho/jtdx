@@ -19,7 +19,10 @@ type GroupedSchemaKeysOf<T extends string> = {
   unrecognized?: string[];
 };
 
-export function groupSchemaKeys(keys: string[]): GroupedSchemaKeys {
+export function groupSchemaKeys(
+  keys: string[],
+  opts: { additionalPropertyNames: Set<string> },
+): GroupedSchemaKeys {
   let result: GroupedSchemaKeys | null = null;
   const schemaFormDiscriminatorKeys: string[] = [];
   const restKeys: string[] = [];
@@ -70,6 +73,8 @@ export function groupSchemaKeys(keys: string[]): GroupedSchemaKeys {
       result.additionalProperties = true;
     } else if (result.type === "discriminator" && key === "mapping") {
       result.mapping = true;
+    } else if (opts.additionalPropertyNames.has(key)) {
+      continue;
     } else {
       (result.unrecognized ??= []).push(key);
     }
