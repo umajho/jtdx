@@ -54,8 +54,8 @@ function checkTypeSchema(schema: TypeSchema, opts: HookOptions) {
 
   { // string related:
     checkThatTargetIsInBound(xChecksObject, fns, {
-      minKey: "minLength",
-      maxKey: "maxLength",
+      min: { key: "minLength" },
+      max: { key: "maxLength" },
       shouldBoundsBeNonNegativeIntegers: true,
       extractTarget: (v) => v.length,
       processBound: (_, opts) => {
@@ -89,10 +89,8 @@ function checkTypeSchema(schema: TypeSchema, opts: HookOptions) {
 
   { // boundable related:
     checkThatTargetIsInBound(xChecksObject, fns, {
-      minKey: "minimum",
-      exclusiveMinKey: "exclusiveMinimum",
-      maxKey: "maximum",
-      exclusiveMaxKey: "exclusiveMaximum",
+      min: { key: "minimum", exclusiveKey: "exclusiveMinimum" },
+      max: { key: "maximum", exclusiveKey: "exclusiveMaximum" },
       shouldBoundsBeNonNegativeIntegers: false,
       extractTarget: schema.type === "timestamp"
         ? (v) => new Date(v).getTime()
@@ -167,8 +165,8 @@ function checkElementsSchema(schema: ElementsSchema, opts: HookOptions) {
   const fns: SupplementalValidateFunction[] = [];
 
   checkThatTargetIsInBound(xChecksObject, fns, {
-    minKey: "minItems",
-    maxKey: "maxItems",
+    min: { key: "minItems" },
+    max: { key: "maxItems" },
     shouldBoundsBeNonNegativeIntegers: true,
     extractTarget: (v) => v.length,
     pushError: opts.pushError,
@@ -197,8 +195,8 @@ function checkPropertiesSchema(schema: PropertiesSchema, opts: HookOptions) {
   const fns: SupplementalValidateFunction[] = [];
 
   checkThatTargetIsInBound(xChecksObject, fns, {
-    minKey: "minProperties",
-    maxKey: "maxProperties",
+    min: { key: "minProperties" },
+    max: { key: "maxProperties" },
     shouldBoundsBeNonNegativeIntegers: true,
     extractTarget: (v) => Object.keys(v).length,
     pushError: opts.pushError,
@@ -216,8 +214,8 @@ function checkValuesSchema(schema: ValuesSchema, opts: HookOptions) {
   const fns: SupplementalValidateFunction[] = [];
 
   checkThatTargetIsInBound(xChecksObject, fns, {
-    minKey: "minValues",
-    maxKey: "maxValues",
+    min: { key: "minValues" },
+    max: { key: "maxValues" },
     shouldBoundsBeNonNegativeIntegers: true,
     extractTarget: (v) => Object.keys(v).length,
     pushError: opts.pushError,
@@ -232,10 +230,8 @@ function checkThatTargetIsInBound(
   xChecksObject: any, // I surrender.
   fns: SupplementalValidateFunction[],
   opts: {
-    minKey: string;
-    exclusiveMinKey?: string;
-    maxKey: string;
-    exclusiveMaxKey?: string;
+    min: { key: string; exclusiveKey?: string };
+    max: { key: string; exclusiveKey?: string };
     shouldBoundsBeNonNegativeIntegers: boolean;
     extractTarget: (v: any) => number;
 
@@ -255,19 +251,11 @@ function checkThatTargetIsInBound(
   const {
     bound: min,
     isExclusive: isMinExclusive,
-  } = extractBound(xChecksObject, {
-    ...baseExtractBoundOpts,
-    boundKey: opts.minKey,
-    ...(opts.exclusiveMinKey && { exclusiveBoundKey: opts.exclusiveMinKey }),
-  });
+  } = extractBound(xChecksObject, { ...baseExtractBoundOpts, ...opts.min });
   const {
     bound: max,
     isExclusive: isMaxExclusive,
-  } = extractBound(xChecksObject, {
-    ...baseExtractBoundOpts,
-    boundKey: opts.maxKey,
-    ...(opts.exclusiveMaxKey && { exclusiveBoundKey: opts.exclusiveMaxKey }),
-  });
+  } = extractBound(xChecksObject, { ...baseExtractBoundOpts, ...opts.max });
 
   if (min !== null && max !== null) {
     if (min > max) {
@@ -321,8 +309,8 @@ type BoundProcessor = (
 const NULL_BOUND = { bound: null, isExclusive: false };
 
 function extractBound(xChecksObject: any, opts: {
-  boundKey: string;
-  exclusiveBoundKey?: string;
+  key: string;
+  exclusiveKey?: string;
   shouldBeNonNegativeInteger: boolean;
 
   processBound?: BoundProcessor;
@@ -331,14 +319,14 @@ function extractBound(xChecksObject: any, opts: {
 }): { bound: number | null; isExclusive: boolean } {
   let key: string;
   let isExclusive = false;
-  if (opts.exclusiveBoundKey && opts.exclusiveBoundKey in xChecksObject) {
-    if (opts.boundKey in xChecksObject) {
+  if (opts.exclusiveKey && opts.exclusiveKey in xChecksObject) {
+    if (opts.key in xChecksObject) {
       opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
     }
-    key = opts.exclusiveBoundKey;
+    key = opts.exclusiveKey;
     isExclusive = true;
-  } else if (opts.boundKey in xChecksObject) {
-    key = opts.boundKey;
+  } else if (opts.key in xChecksObject) {
+    key = opts.key;
   } else return NULL_BOUND;
 
   const bound__ = take(xChecksObject, key)!;
