@@ -10,7 +10,7 @@ My personal take on extending JSON Typedef.
 ## Reasoning
 
 - Why do I need to extend JSON Typedef?
-  > I'm working on a project, where users should be able to create forms from
+  > I'm working on a project, where users are capable of creating forms from
   > JSON data. JSON Typedef is not expressive enough to fit the requirements.
 - Why don't I choose JSON Schema based form builders that already exist, like
   [JSON Forms](https://jsonforms.io/)?
@@ -28,9 +28,10 @@ My personal take on extending JSON Typedef.
   >   doesn't worth my time.
 - Why do I extend JSON Typedef instead of leveraging the `metadata` field it
   already provides?
-  > Supporting features like lazy loading already breaks JSON Typedef. Enabling
-  > these features by putting related stuff in the `metadata` field just makes
-  > that less obvious. For other features, it is just for consistency.
+  > - Supporting features like lazy loading already breaks JSON Typedef.
+  >   Enabling these features by putting related stuff in the `metadata` field
+  >   just makes that less obvious.
+  > - For other features, it is just for consistency.
 
 ## Basic Usage
 
