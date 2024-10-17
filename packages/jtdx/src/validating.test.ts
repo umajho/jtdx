@@ -20,9 +20,7 @@ const ONLY = ((): RegExp | null => {
 })();
 
 describe("Official", () => {
-  for (
-    const [name, data] of Object.entries(officialValidationJson)
-  ) {
+  for (const [name, data] of Object.entries(officialValidationJson)) {
     const { schema, instance, errors } = data;
     const ox = errors.length ? "X" : "O";
     const jsonSchema = JSON.stringify(schema);
