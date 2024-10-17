@@ -637,3 +637,26 @@ const compilationResult = compile(schema, {
 </tr>
 </table>
 </details>
+
+## Miscellaneous
+
+### On code generation / type inference
+
+If a schema has additional properties used by those breaking extensions (like
+`x:checks`), [json-typedef-codegen] will reject it.
+
+An alternative approach is to define schemas in TypeScript and use
+[Ajv's `JTDDataType`]:
+
+`pnpm i -D ajv`
+
+```typescript
+import { JTDDataType } from "ajv/dist/jtd";
+
+// …
+
+type Data = JTDDataType<typeof schema>;
+```
+
+[json-typedef-codegen]: https://github.com/jsontypedef/json-typedef-codegen
+[Ajv's `JTDDataType`]: https://ajv.js.org/guide/typescript.html#utility-type-for-jtd-data-type
