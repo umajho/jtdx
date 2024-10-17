@@ -1,5 +1,3 @@
-@@ -0,0 +1,155 @@
-
 # JTDX
 
 [![NPM Version](https://img.shields.io/npm/v/jtdx)](https://www.npmjs.com/package/jtdx)

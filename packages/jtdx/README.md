@@ -1,7 +1,5 @@
 <!-- THIS FILE IS GENERATED. DO NOT EDIT. -->
 <!-- GENERATED FROM: README.raw.md -->
-@@ -0,0 +1,155 @@
-
 # JTDX
 
 [![NPM Version](https://img.shields.io/npm/v/jtdx)](https://www.npmjs.com/package/jtdx)
