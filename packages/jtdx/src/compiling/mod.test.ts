@@ -13,7 +13,7 @@ describe("Official", () => {
     const caseName = `${name}: ${JSON.stringify(schema)}`;
 
     it(caseName, () => {
-      const compileResult = compile(schema as any, { extensions: null });
+      const compileResult = compile(schema as any);
       expect(compileResult.isOk).toBe(false);
     });
   }

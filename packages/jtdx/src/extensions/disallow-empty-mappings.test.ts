@@ -5,12 +5,10 @@ import { expectError } from "../../test-support/utils";
 import { Schema } from "../types";
 import { CompilationOptions, compile } from "../mod";
 
+import { BreakingExtensions } from "./mod";
+
 const COMPILATION_OPTIONS: CompilationOptions = {
-  extensions: {
-    breaking: {
-      "(disallow empty mappings)": true,
-    },
-  },
+  breakingExtensions: [BreakingExtensions.disallowEmptyMappings],
 };
 
 const ERROR_PREFIX = "EXTENSION:DISALLOW_EMPTY_MAPPINGS" as const;
@@ -20,7 +18,7 @@ describe("Compilation", () => {
     it("works", () => {
       const schema: Schema = { discriminator: "foo", mapping: {} };
 
-      expect(compile(schema, { extensions: null }).isOk).toBe(true);
+      expect(compile(schema).isOk).toBe(true);
 
       expectError(
         schema,

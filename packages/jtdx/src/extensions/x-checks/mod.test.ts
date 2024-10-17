@@ -6,6 +6,7 @@ import { compile } from "../../mod";
 
 import examplesByFeature from "./mod.examples";
 import { CompilationResult } from "../../../dist/types/mod";
+import { BreakingExtensions } from "../mod";
 
 describe("Compilation", () => {
   describe.todo("Errors");
@@ -16,11 +17,7 @@ describe("Validation", () => {
     testExamplesByFeatureForValidation(examplesByFeature, {
       createValidator: (schema) => {
         const compileResult = compile(schema, {
-          extensions: {
-            breaking: {
-              "x:checks": true,
-            },
-          },
+          breakingExtensions: [BreakingExtensions.xChecks],
         });
         expect(compileResult).compilationToBeOk();
         return (compileResult as Extract<CompilationResult, { isOk: true }>)

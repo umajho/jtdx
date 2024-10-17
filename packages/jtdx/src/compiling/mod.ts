@@ -5,8 +5,8 @@ import {
   createCompilationError as makeCompilationError,
   ValidationError,
 } from "../errors";
-import { useDisallowEmptyMappings } from "../extensions/disallow-empty-mappings";
-import { useXChecks } from "../extensions/x-checks/mod";
+import { BreakingExtension } from "../extensions/mod";
+import { internal } from "../internal/mod";
 import {
   DiscriminatorSchema,
   ElementsSchema,
@@ -45,12 +45,7 @@ import { Hooks, runHooks } from "./hooks";
 import { GroupedSchemaKeys, groupSchemaKeys } from "./schema-keys";
 
 export interface CompilationOptions {
-  extensions: {
-    breaking: {
-      "(disallow empty mappings)"?: boolean;
-      "x:checks"?: boolean;
-    } | null;
-  } | null;
+  breakingExtensions?: BreakingExtension[];
 }
 
 interface InternalCompilationOptions extends CompilationOptions {
@@ -73,15 +68,13 @@ type Dependencies = Record<string, { isAtRoot: boolean }>;
 
 export function compile(
   schema: RootSchema,
-  opts: CompilationOptions,
+  opts?: CompilationOptions,
 ): CompilationResult {
   const { hooks, additionalPropertyNames } = (() => {
     const { context, finalize } = createExtensionContext();
-    if (opts.extensions?.breaking?.["(disallow empty mappings)"]) {
-      useDisallowEmptyMappings(context);
-    }
-    if (opts.extensions?.breaking?.["x:checks"]) {
-      useXChecks(context);
+    for (const ext of opts?.breakingExtensions ?? []) {
+      // @ts-ignore
+      ext[internal](context);
     }
     return finalize();
   })();

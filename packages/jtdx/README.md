@@ -39,9 +39,7 @@ My personal take on extending JSON Typedef.
 import { compile, type RootSchema } from "jtdx";
 
 const schema: RootSchema = { type: "string" };
-const compilationResult = compile(schema, {
-  extensions: null,
-});
+const compilationResult = compile(schema);
 if (!compilationResult.isOk) {
   throw new Error(
     `Compilation failed: ${JSON.stringify(compilationResult.errors)}`,
@@ -60,15 +58,14 @@ console.log("Validation succeeded!");
 
 ## Breaking Extension `(disallow empty mappings)`
 
-```diff
-  const compilationResult = compile(schema, {
--   extensions: null,
-+   extensions: {
-+     breaking: {
-+       "(disallow empty mappings)": true,
-+     },
-+   },
-  });
+```typescript
+import { BreakingExtensions, compile } from "jtdx";
+
+// …
+
+const compilationResult = compile(schema, {
+  breakingExtensions: [BreakingExtensions.disallowEmptyMappings],
+});
 ```
 
 This will cause the compiler to disallow empty mappings in the schema.
@@ -85,15 +82,14 @@ otherwise it is valid:
 
 ## Breaking Extension `x:checks`: extra validation rules mostly borrowed from JSON Schema
 
-```diff
-  const compilationResult = compile(schema, {
--   extensions: null,
-+   extensions: {
-+     breaking: {
-+       "x:checks": true,
-+     },
-+   },
-  });
+```typescript
+import { BreakingExtensions, compile } from "jtdx";
+
+// …
+
+const compilationResult = compile(schema, {
+  breakingExtensions: [BreakingExtensions.xChecks],
+});
 ```
 
 > [!NOTE]

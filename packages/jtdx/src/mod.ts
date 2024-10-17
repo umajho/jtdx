@@ -13,3 +13,5 @@ export type {
 } from "./errors";
 
 export { compile } from "./compiling/mod";
+
+export { BreakingExtensions } from "./extensions/mod";

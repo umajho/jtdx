@@ -29,7 +29,7 @@ describe("Official", () => {
 
     const caseFn = () => {
       const validator = (() => {
-        const compileResult = compile(schema as any, { extensions: null });
+        const compileResult = compile(schema as any);
         expect(compileResult).compilationToBeOk();
         return (compileResult as Extract<CompilationResult, { isOk: true }>)
           .validator;
@@ -287,9 +287,7 @@ function expectError(
     compilationOptions: CompilationOptions;
   },
 ) {
-  const compOpts = opts?.compilationOptions ?? { extensions: null };
-
-  const compResult = compile(schema, compOpts);
+  const compResult = compile(schema, opts?.compilationOptions);
   expect(compResult).compilationToBeOk();
   const validator =
     (compResult as Extract<CompilationResult, { isOk: true }>).validator;

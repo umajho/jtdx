@@ -10,7 +10,6 @@ export function expectError(
     compilationOptions: CompilationOptions;
   },
 ) {
-  const compOpts = opts?.compilationOptions ?? { extensions: null };
-
-  expect(compile(schema, compOpts)).toEqual({ isOk: false, errors });
+  expect(compile(schema, opts?.compilationOptions))
+    .toEqual({ isOk: false, errors });
 }
