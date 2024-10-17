@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { expectError } from "../../test-support/utils";
+import { expectCompilationErrors } from "../../test-support/utils";
 
 import { compile } from "./mod";
 
@@ -23,7 +23,7 @@ describe("Errors", () => {
   describe("SCHEMA_FORM", () => {
     describe("SCHEMA_FORM:AMBIGUOUS", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { type: "string", properties: {} } as any,
           [{
             schemaPath: [],
@@ -38,7 +38,7 @@ describe("Errors", () => {
 
     describe("SCHEMA_FORM:NOT_OBJECT", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           42 as any,
           [{
             schemaPath: [],
@@ -52,7 +52,7 @@ describe("Errors", () => {
   describe("MAPPING", () => {
     describe("MAPPING:NON_PROPERTIES_SCHEMA_FORM", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { discriminator: "foo", mapping: { bar: { type: "string" } } } as any,
           [{
             schemaPath: ["mapping", "bar"],
@@ -64,7 +64,7 @@ describe("Errors", () => {
 
     describe("MAPPING:NULLABLE", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           {
             discriminator: "foo",
             mapping: { bar: { properties: {}, nullable: true } } as any,
@@ -79,7 +79,7 @@ describe("Errors", () => {
 
     describe("MAPPING:DISCRIMINATOR_AS_PROPERTY_KEY", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           {
             discriminator: "foo",
             mapping: { bar: { properties: { foo: {} } } },
@@ -99,7 +99,7 @@ describe("Errors", () => {
   describe("NON_ROOT_SCHEMA", () => {
     describe("NON_ROOT_SCHEMA:ROOT_ONLY_KEYS", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { elements: { definitions: {} } } as any,
           [{
             schemaPath: ["elements"],
@@ -116,7 +116,7 @@ describe("Errors", () => {
   describe("COMMON_SCHEMA", () => {
     describe("COMMON_SCHEMA:UNRECOGNIZED_KEYS", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { unknown: 42 } as any,
           [{
             schemaPath: [],
@@ -132,7 +132,7 @@ describe("Errors", () => {
 
     describe("COMMON_SCHEMA:NON_BOOLEAN_NULLABLE_VALUE", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { type: "string", nullable: 42 } as any,
           [{
             schemaPath: [],
@@ -149,7 +149,7 @@ describe("Errors", () => {
   describe("TYPE_FORM", () => {
     describe("TYPE_FORM:UNKNOWN_TYPE", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { type: "unknown" } as any,
           [{
             schemaPath: ["type"],
@@ -161,7 +161,7 @@ describe("Errors", () => {
 
     describe("TYPE_FORM:NON_STRING_TYPE", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { type: 42 } as any,
           [{
             schemaPath: ["type"],
@@ -178,7 +178,7 @@ describe("Errors", () => {
   describe("ENUM_FORM", () => {
     describe("ENUM_FORM:NON_ARRAY_ENUM", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { enum: 42 } as any,
           [{
             schemaPath: ["enum"],
@@ -193,7 +193,7 @@ describe("Errors", () => {
 
     describe("ENUM_FORM:EMPTY_ENUM", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { enum: [] } as any,
           [{
             schemaPath: ["enum"],
@@ -205,7 +205,7 @@ describe("Errors", () => {
 
     describe("ENUM_FORM:NON_STRING_VARIANTS", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { enum: [42] } as any,
           [{
             schemaPath: ["enum"],
@@ -217,7 +217,7 @@ describe("Errors", () => {
 
     describe("ENUM_FORM:DUPLICATE_VARIANTS", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { enum: ["foo", "foo"] } as any,
           [{
             schemaPath: ["enum"],
@@ -234,7 +234,7 @@ describe("Errors", () => {
   describe("PROPERTIES_FORM", () => {
     describe("PROPERTIES_FORM:NON_OBJECT_PROPERTIES", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { properties: 42 } as any,
           [{
             schemaPath: ["properties"],
@@ -249,7 +249,7 @@ describe("Errors", () => {
 
     describe("PROPERTIES_FORM:NON_OBJECT_OPTIONAL_PROPERTIES", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { optionalProperties: 42 } as any,
           [{
             schemaPath: ["optionalProperties"],
@@ -264,7 +264,7 @@ describe("Errors", () => {
 
     describe("PROPERTIES_FORM:OVERLAPPING_REQUIRED_AND_OPTIONAL_PROPERTIES", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { properties: { foo: {} }, optionalProperties: { foo: {} } },
           [{
             schemaPath: ["optionalProperties"],
@@ -280,7 +280,7 @@ describe("Errors", () => {
 
     describe("PROPERTIES_FORM:NON_BOOLEAN_ADDITIONAL_PROPERTIES", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { properties: {}, additionalProperties: 42 } as any,
           [{
             schemaPath: ["additionalProperties"],
@@ -297,7 +297,7 @@ describe("Errors", () => {
   describe("DISCRIMINATOR_FORM", () => {
     describe("DISCRIMINATOR_FORM:NON_STRING_DISCRIMINATOR", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { discriminator: 42, mapping: { foo: { properties: {} } } } as any,
           [{
             schemaPath: [],
@@ -312,7 +312,7 @@ describe("Errors", () => {
 
     describe("DISCRIMINATOR_FORM:MISSING_MAPPING", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { discriminator: "foo" } as any,
           [{
             schemaPath: [],
@@ -324,7 +324,7 @@ describe("Errors", () => {
 
     describe("DISCRIMINATOR_FORM:NON_OBJECT_MAPPING", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { discriminator: "foo", mapping: 42 } as any,
           [{
             schemaPath: [],
@@ -341,7 +341,7 @@ describe("Errors", () => {
   describe("REF_FORM", () => {
     describe("REF_FORM:NON_STRING_REF", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { ref: 42 } as any,
           [{
             schemaPath: ["ref"],
@@ -353,7 +353,7 @@ describe("Errors", () => {
 
     describe("REF_FORM:NO_DEFINITION", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { ref: "foo" } as any,
           [{
             schemaPath: ["ref"],
@@ -367,7 +367,7 @@ describe("Errors", () => {
   describe("DEFINITIONS", () => {
     describe("DEFINITIONS:NON_OBJECT_DEFINITIONS", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { definitions: 42 } as any,
           [{
             schemaPath: [],
@@ -382,7 +382,7 @@ describe("Errors", () => {
 
     describe("DEFINITIONS:NOOP_CIRCULAR_REFERENCES_DETECTED", () => {
       it("case 1", () => {
-        expectError(
+        expectCompilationErrors(
           { definitions: { foo: { ref: "foo" } } } as any,
           [{
             schemaPath: [],

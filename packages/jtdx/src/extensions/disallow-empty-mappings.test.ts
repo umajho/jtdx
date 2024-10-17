@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { expectError } from "../../test-support/utils";
+import { expectCompilationErrors } from "../../test-support/utils";
 
 import { Schema } from "../types";
 import { CompilationOptions, compile } from "../mod";
@@ -20,7 +20,7 @@ describe("Compilation", () => {
 
       expect(compile(schema).isOk).toBe(true);
 
-      expectError(
+      expectCompilationErrors(
         schema,
         [{
           schemaPath: [],

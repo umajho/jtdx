@@ -3,7 +3,7 @@ import { expect } from "vitest";
 import { CompilationError, CompilationOptions, compile } from "../src/mod";
 import { Schema } from "../src/types";
 
-export function expectError(
+export function expectCompilationErrors(
   schema: Schema,
   errors: CompilationError[],
   opts?: {
