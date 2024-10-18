@@ -19,7 +19,7 @@ import {
 } from "../../types";
 import isRFC3339 from "../../utils/isRFC3339";
 import { jsonTypeOf } from "../../utils/jsonTypeOf";
-import { ERROR_PREFIX } from "./errors";
+import { VET } from "./errors";
 import {
   isBoundableType,
   isIntegerType,
@@ -81,10 +81,7 @@ function checkTypeSchema(schema: TypeSchema, opts: HookOptions) {
         } else {
           fns.push((v: string, opts) => {
             if (!rxOrErr.test(v)) {
-              opts.pushError({
-                type: `${ERROR_PREFIX}:PATTERN_MISMATCH`,
-                pattern,
-              });
+              opts.pushError({ type: VET.PATTERN_MISMATCH, pattern });
             }
           });
         }
@@ -159,10 +156,7 @@ function checkTypeSchema(schema: TypeSchema, opts: HookOptions) {
       } else {
         fns.push((v: number, opts) => {
           if (v % multipleOf !== 0) {
-            opts.pushError({
-              type: `${ERROR_PREFIX}:NOT_MULTIPLE_OF`,
-              multipleOf,
-            });
+            opts.pushError({ type: VET.NOT_MULTIPLE_OF, multipleOf });
           }
         });
       }
@@ -194,7 +188,7 @@ function checkElementsSchema(schema: ElementsSchema, opts: HookOptions) {
     if (uniqueElements) {
       fns.push((v: any[], opts) => {
         if (v.length !== new Set(v).size) {
-          opts.pushError({ type: `${ERROR_PREFIX}:ELEMENTS_NOT_UNIQUE` });
+          opts.pushError({ type: VET.ELEMENTS_NOT_UNIQUE });
         }
       });
     }
@@ -297,7 +291,7 @@ function checkThatTargetIsInBound(
       fns.push((v: any[], opts) => {
         if (extractTarget(v) <= min) {
           opts.pushError({
-            type: `${ERROR_PREFIX}:OUT_OF_BOUND`,
+            type: VET.OUT_OF_BOUND,
             comparisonTargetType,
             bound: min,
             targetBeingWhatThanBound: "<=",
@@ -308,7 +302,7 @@ function checkThatTargetIsInBound(
       fns.push((v: any[], opts) => {
         if (extractTarget(v) < min) {
           opts.pushError({
-            type: `${ERROR_PREFIX}:OUT_OF_BOUND`,
+            type: VET.OUT_OF_BOUND,
             comparisonTargetType,
             bound: min,
             targetBeingWhatThanBound: "<",
@@ -322,7 +316,7 @@ function checkThatTargetIsInBound(
       fns.push((v: any[], opts) => {
         if (extractTarget(v) >= max) {
           opts.pushError({
-            type: `${ERROR_PREFIX}:OUT_OF_BOUND`,
+            type: VET.OUT_OF_BOUND,
             comparisonTargetType,
             bound: max,
             targetBeingWhatThanBound: ">=",
@@ -333,7 +327,7 @@ function checkThatTargetIsInBound(
       fns.push((v: any[], opts) => {
         if (extractTarget(v) > max) {
           opts.pushError({
-            type: `${ERROR_PREFIX}:OUT_OF_BOUND`,
+            type: VET.OUT_OF_BOUND,
             comparisonTargetType,
             bound: max,
             targetBeingWhatThanBound: ">",
