@@ -62,26 +62,26 @@ describe("Validation", () => {
         );
       });
     });
-    describe("ITEMS_NOT_UNIQUE", () => {
+    describe("ELEMENTS_NOT_UNIQUE", () => {
       it("case 1", () => {
         expectValidationError(
-          { elements: { type: "int8" }, "x:checks": { uniqueItems: true } },
+          { elements: { type: "int8" }, "x:checks": { uniqueElements: true } },
           [42, 42],
           [{
             schemaPath: ["elements"],
             instancePath: [],
-            raw: { type: "EXTENSION:X_CHECKS:ITEMS_NOT_UNIQUE" },
+            raw: { type: "EXTENSION:X_CHECKS:ELEMENTS_NOT_UNIQUE" },
           }],
         );
       });
       it("case 2", () => {
         expectValidationError(
-          { elements: { enum: ["foo"] }, "x:checks": { uniqueItems: true } },
+          { elements: { enum: ["foo"] }, "x:checks": { uniqueElements: true } },
           ["foo", "foo"],
           [{
             schemaPath: ["elements"],
             instancePath: [],
-            raw: { type: "EXTENSION:X_CHECKS:ITEMS_NOT_UNIQUE" },
+            raw: { type: "EXTENSION:X_CHECKS:ELEMENTS_NOT_UNIQUE" },
           }],
         );
       });
@@ -121,7 +121,7 @@ describe("Validation", () => {
       });
       it("case 3", () => {
         expectValidationError(
-          { elements: {}, "x:checks": { minItems: 3 } },
+          { elements: {}, "x:checks": { minElements: 3 } },
           [],
           [{
             schemaPath: ["elements"],

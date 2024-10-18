@@ -61,21 +61,21 @@ export default {
       invalidCases: [1],
     },
   ],
-  "elements : `minItems` & `maxItems`": [
+  "elements : `minElements` & `maxElements`": [
     {
       schema: {
         elements: { type: "int8" },
-        "x:checks": { minItems: 3, maxItems: 5 },
+        "x:checks": { minElements: 3, maxElements: 5 },
       },
       validCases: [[1, 2, 3]],
       invalidCases: [[1], [1, 2, 3, 4, 5, 6]],
     },
   ],
-  "elements(type|enum) : `uniqueItems`": [
+  "elements(type|enum) : `uniqueElements`": [
     {
       schema: {
         elements: { type: "int16" },
-        "x:checks": { uniqueItems: true },
+        "x:checks": { uniqueElements: true },
       },
       validCases: [[123, 456]],
       invalidCases: [[123, 123]],
@@ -83,7 +83,7 @@ export default {
     {
       schema: {
         elements: { enum: ["foo", "bar"] },
-        "x:checks": { uniqueItems: true },
+        "x:checks": { uniqueElements: true },
       },
       validCases: [["foo", "bar"]],
       invalidCases: [["foo", "foo"]],

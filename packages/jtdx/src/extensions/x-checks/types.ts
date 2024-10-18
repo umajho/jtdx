@@ -20,7 +20,11 @@ interface XChecksBounds<T> {
 }
 
 export interface WithXChecksForElementsSchema {
-  "x:checks"?: { minItems?: number; maxItems?: number; uniqueItems?: boolean };
+  "x:checks"?: {
+    minElements?: number;
+    maxElements?: number;
+    uniqueElements?: boolean;
+  };
 }
 
 export type WithXChecksForPropertiesSchema = {

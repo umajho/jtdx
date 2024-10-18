@@ -400,7 +400,7 @@ const compilationResult = compile(schema, {
 
 ### For `Elements` form schema
 
-#### `minItems` & `maxItems`
+#### `minElements` & `maxElements`
 
 <details open>
 <summary>example 1</summary>
@@ -413,8 +413,8 @@ const compilationResult = compile(schema, {
 {
   "elements": {"type": "int8"},
   "x:checks": {
-    "minItems": 3,
-    "maxItems": 5
+    "minElements": 3,
+    "maxElements": 5
   }
 } 
 ```
@@ -449,7 +449,7 @@ const compilationResult = compile(schema, {
 
 ### For `Elements` form schema where `elements` is a `Type` or `Enum` form schema
 
-#### `uniqueItems`
+#### `uniqueElements`
 
 <details open>
 <summary>example 1</summary>
@@ -461,7 +461,7 @@ const compilationResult = compile(schema, {
 ```json
 {
   "elements": {"type": "int16"},
-  "x:checks": {"uniqueItems": true}
+  "x:checks": {"uniqueElements": true}
 } 
 ```
 </td>
@@ -496,7 +496,7 @@ const compilationResult = compile(schema, {
 ```json
 {
   "elements": {"enum": ["foo", "bar"]},
-  "x:checks": {"uniqueItems": true}
+  "x:checks": {"uniqueElements": true}
 } 
 ```
 </td>

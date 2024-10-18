@@ -131,18 +131,18 @@ x:checks :: type(numeric) : `multipleOf`
 
 ### For `Elements` form schema
 
-#### `minItems` & `maxItems`
+#### `minElements` & `maxElements`
 
 ```insert-examples
-x:checks :: elements : `minItems` & `maxItems`
+x:checks :: elements : `minElements` & `maxElements`
 ```
 
 ### For `Elements` form schema where `elements` is a `Type` or `Enum` form schema
 
-#### `uniqueItems`
+#### `uniqueElements`
 
 ```insert-examples
-x:checks :: elements(type|enum) : `uniqueItems`
+x:checks :: elements(type|enum) : `uniqueElements`
 ```
 
 ### For `Properties` form schema

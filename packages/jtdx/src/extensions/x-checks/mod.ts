@@ -175,19 +175,19 @@ function checkElementsSchema(schema: ElementsSchema, opts: HookOptions) {
 
   checkThatTargetIsInBound(xChecksObject, fns, {
     comparisonTargetType: "elements",
-    min: { key: "minItems" },
-    max: { key: "maxItems" },
+    min: { key: "minElements" },
+    max: { key: "maxElements" },
     shouldBoundsBeNonNegativeIntegers: true,
     extractTarget: (v) => v.length,
     pushError: opts.pushError,
   });
 
-  if ("uniqueItems" in xChecksObject) {
-    const uniqueItems = take(xChecksObject, "uniqueItems")!;
-    if (uniqueItems) {
+  if ("uniqueElements" in xChecksObject) {
+    const uniqueElements = take(xChecksObject, "uniqueElements")!;
+    if (uniqueElements) {
       fns.push((v: any[], opts) => {
         if (v.length !== new Set(v).size) {
-          opts.pushError({ type: `${ERROR_PREFIX}:ITEMS_NOT_UNIQUE` });
+          opts.pushError({ type: `${ERROR_PREFIX}:ELEMENTS_NOT_UNIQUE` });
         }
       });
     }
