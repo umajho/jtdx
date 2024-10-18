@@ -340,9 +340,15 @@ const compilationResult = compile(schema, {
 </table>
 </details>
 
-### For `Type` form schema where `type` is a numeric type
+### For `Type` form schema where `type` is a ~~numeric~~ integer type
 
 #### `multipleOf`
+
+> [!NOTE]
+>
+> Currently, `multipleOf` can only be applied to integer types, and its value
+> also has to be an integer. That's to avoid meddling with floating-point
+> rounding issues for now.
 
 <details open>
 <summary>example 1</summary>
@@ -353,8 +359,8 @@ const compilationResult = compile(schema, {
 
 ```json
 {
-  "type": "float64",
-  "x:checks": {"multipleOf": 2.5}
+  "type": "int8",
+  "x:checks": {"multipleOf": 3}
 } 
 ```
 </td>
@@ -364,13 +370,13 @@ const compilationResult = compile(schema, {
 <td>
 
 ```json
-2.5
+3
 ```
 </td>
 <td>
 
 ```json
-5
+6
 ```
 </td>
 <td>
@@ -382,16 +388,22 @@ const compilationResult = compile(schema, {
 <td>
 
 ```json
--7.5
+-9
 ```
 </td>
 </tr>
 <tr><th colspan="4">🔴 Invalid Cases</th></tr>
 <tr>
-<td colspan="4">
+<td colspan="2">
 
 ```json
 1
+```
+</td>
+<td colspan="2">
+
+```json
+20
 ```
 </td>
 </tr>

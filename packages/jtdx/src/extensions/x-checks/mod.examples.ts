@@ -51,14 +51,14 @@ export default {
         invalidCases: ["2100-01-11T00:00:00.00Z"],
       },
     ],
-  "type(numeric) : `multipleOf`": [
+  "type(integer) : `multipleOf`": [
     {
       schema: {
-        type: "float64",
-        "x:checks": { multipleOf: 2.5 },
+        type: "int8",
+        "x:checks": { multipleOf: 3 },
       },
-      validCases: [2.5, 5, 0, -7.5],
-      invalidCases: [1],
+      validCases: [3, 6, 0, -9],
+      invalidCases: [1, 20],
     },
   ],
   "elements : `minElements` & `maxElements`": [

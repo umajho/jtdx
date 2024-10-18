@@ -121,12 +121,18 @@ x:checks :: type(string) : `pattern`
 x:checks :: type(numeric|timestamp) : (`minimum` & `exclusiveMinimum`) & (`maximum` & `exclusiveMaximum`)
 ```
 
-### For `Type` form schema where `type` is a numeric type
+### For `Type` form schema where `type` is a ~~numeric~~ integer type
 
 #### `multipleOf`
 
+> [!NOTE]
+>
+> Currently, `multipleOf` can only be applied to integer types, and its value
+> also has to be an integer. That's to avoid meddling with floating-point
+> rounding issues for now.
+
 ```insert-examples
-x:checks :: type(numeric) : `multipleOf`
+x:checks :: type(integer) : `multipleOf`
 ```
 
 ### For `Elements` form schema

@@ -147,7 +147,14 @@ function checkTypeSchema(schema: TypeSchema, opts: HookOptions) {
       const multipleOf = take(xChecksObject, "multipleOf")!;
       if (!isNumericType(schema.type)) {
         opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+      } else if (!isIntegerType(schema.type)) {
+        // TODO: figure out how to handle rounding issues to support non-integer
+        // numbers.
+        opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
       } else if (typeof multipleOf !== "number") {
+        opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+      } else if (!Number.isInteger(multipleOf)) {
+        // TODO: same as above. (rounding issues)
         opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
       } else {
         fns.push((v: number, opts) => {
