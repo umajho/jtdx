@@ -109,6 +109,11 @@ export interface ValidationError {
   raw: ValidationRawError;
 }
 
+/**
+ * TODO: If the localizer accepts schemas, some properties (like `expectedType`,
+ * `discriminator`) are not necessary, since they can be extracted by schemas
+ * with schema paths.
+ */
 export type ValidationRawError =
   | {
     type: "TYPE_FORM:TYPE_MISMATCH";

@@ -19,6 +19,7 @@ import {
 } from "../../types";
 import isRFC3339 from "../../utils/isRFC3339";
 import { jsonTypeOf } from "../../utils/jsonTypeOf";
+import { ERROR_PREFIX } from "./errors";
 import {
   isBoundableType,
   isIntegerType,
@@ -54,6 +55,7 @@ function checkTypeSchema(schema: TypeSchema, opts: HookOptions) {
 
   { // string related:
     checkThatTargetIsInBound(xChecksObject, fns, {
+      comparisonTargetType: "string_length",
       min: { key: "minLength" },
       max: { key: "maxLength" },
       shouldBoundsBeNonNegativeIntegers: true,
@@ -79,7 +81,10 @@ function checkTypeSchema(schema: TypeSchema, opts: HookOptions) {
         } else {
           fns.push((v: string, opts) => {
             if (!rxOrErr.test(v)) {
-              opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+              opts.pushError({
+                type: `${ERROR_PREFIX}:PATTERN_MISMATCH`,
+                pattern,
+              });
             }
           });
         }
@@ -89,6 +94,7 @@ function checkTypeSchema(schema: TypeSchema, opts: HookOptions) {
 
   { // boundable related:
     checkThatTargetIsInBound(xChecksObject, fns, {
+      comparisonTargetType: "value",
       min: { key: "minimum", exclusiveKey: "exclusiveMinimum" },
       max: { key: "maximum", exclusiveKey: "exclusiveMaximum" },
       shouldBoundsBeNonNegativeIntegers: false,
@@ -146,7 +152,10 @@ function checkTypeSchema(schema: TypeSchema, opts: HookOptions) {
       } else {
         fns.push((v: number, opts) => {
           if (v % multipleOf !== 0) {
-            opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+            opts.pushError({
+              type: `${ERROR_PREFIX}:NOT_MULTIPLE_OF`,
+              multipleOf,
+            });
           }
         });
       }
@@ -165,6 +174,7 @@ function checkElementsSchema(schema: ElementsSchema, opts: HookOptions) {
   const fns: SupplementalValidateFunction[] = [];
 
   checkThatTargetIsInBound(xChecksObject, fns, {
+    comparisonTargetType: "elements",
     min: { key: "minItems" },
     max: { key: "maxItems" },
     shouldBoundsBeNonNegativeIntegers: true,
@@ -177,7 +187,7 @@ function checkElementsSchema(schema: ElementsSchema, opts: HookOptions) {
     if (uniqueItems) {
       fns.push((v: any[], opts) => {
         if (v.length !== new Set(v).size) {
-          opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+          opts.pushError({ type: `${ERROR_PREFIX}:ITEMS_NOT_UNIQUE` });
         }
       });
     }
@@ -195,6 +205,7 @@ function checkPropertiesSchema(schema: PropertiesSchema, opts: HookOptions) {
   const fns: SupplementalValidateFunction[] = [];
 
   checkThatTargetIsInBound(xChecksObject, fns, {
+    comparisonTargetType: "properties",
     min: { key: "minProperties" },
     max: { key: "maxProperties" },
     shouldBoundsBeNonNegativeIntegers: true,
@@ -214,6 +225,7 @@ function checkValuesSchema(schema: ValuesSchema, opts: HookOptions) {
   const fns: SupplementalValidateFunction[] = [];
 
   checkThatTargetIsInBound(xChecksObject, fns, {
+    comparisonTargetType: "values",
     min: { key: "minValues" },
     max: { key: "maxValues" },
     shouldBoundsBeNonNegativeIntegers: true,
@@ -226,10 +238,18 @@ function checkValuesSchema(schema: ValuesSchema, opts: HookOptions) {
   return fns;
 }
 
+export type ComparisonTargetType =
+  | "string_length"
+  | "value"
+  | "elements"
+  | "properties"
+  | "values";
+
 function checkThatTargetIsInBound(
   xChecksObject: any, // I surrender.
   fns: SupplementalValidateFunction[],
   opts: {
+    comparisonTargetType: ComparisonTargetType;
     min: { key: string; exclusiveKey?: string };
     max: { key: string; exclusiveKey?: string };
     shouldBoundsBeNonNegativeIntegers: boolean;
@@ -240,7 +260,7 @@ function checkThatTargetIsInBound(
     pushError: (raw: CompilationRawError) => void;
   },
 ) {
-  const { extractTarget } = opts;
+  const { comparisonTargetType, extractTarget } = opts;
 
   const baseExtractBoundOpts = {
     shouldBeNonNegativeInteger: opts.shouldBoundsBeNonNegativeIntegers,
@@ -269,13 +289,23 @@ function checkThatTargetIsInBound(
     if (isMinExclusive) {
       fns.push((v: any[], opts) => {
         if (extractTarget(v) <= min) {
-          opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+          opts.pushError({
+            type: `${ERROR_PREFIX}:OUT_OF_BOUND`,
+            comparisonTargetType,
+            bound: min,
+            targetBeingWhatThanBound: "<=",
+          });
         }
       });
     } else {
       fns.push((v: any[], opts) => {
         if (extractTarget(v) < min) {
-          opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+          opts.pushError({
+            type: `${ERROR_PREFIX}:OUT_OF_BOUND`,
+            comparisonTargetType,
+            bound: min,
+            targetBeingWhatThanBound: "<",
+          });
         }
       });
     }
@@ -284,13 +314,23 @@ function checkThatTargetIsInBound(
     if (isMaxExclusive) {
       fns.push((v: any[], opts) => {
         if (extractTarget(v) >= max) {
-          opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+          opts.pushError({
+            type: `${ERROR_PREFIX}:OUT_OF_BOUND`,
+            comparisonTargetType,
+            bound: max,
+            targetBeingWhatThanBound: ">=",
+          });
         }
       });
     } else {
       fns.push((v: any[], opts) => {
         if (extractTarget(v) > max) {
-          opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+          opts.pushError({
+            type: `${ERROR_PREFIX}:OUT_OF_BOUND`,
+            comparisonTargetType,
+            bound: max,
+            targetBeingWhatThanBound: ">",
+          });
         }
       });
     }

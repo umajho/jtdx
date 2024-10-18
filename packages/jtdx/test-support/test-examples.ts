@@ -30,7 +30,6 @@ export function testExamplesByFeatureForValidation(
           for (const [i, kase] of example.invalidCases.entries()) {
             it(`invalid case ${i + 1}: ${JSON.stringify(kase)}`, () => {
               const result = validator.validate(kase);
-              // TODO!!: test error messages.
               expect(result.isOk).toBe(false);
             });
           }

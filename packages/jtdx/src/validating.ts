@@ -309,7 +309,7 @@ export function validateProperties(
 
   opts.supplementalValidateFunctions &&
     runSupplementalValidateFunctions(opts.supplementalValidateFunctions, v, {
-      pushError: (raw) => pushError(schemaPath, instancePath, refs, raw),
+      pushError: (raw) => pushError(selfSchemaPath, instancePath, refs, raw),
     });
 
   for (const subToRun of subsToRun) {
