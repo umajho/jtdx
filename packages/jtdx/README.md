@@ -80,6 +80,29 @@ otherwise it is valid:
 }
 ```
 
+## Breaking Extension `(disallow leap seconds)`
+
+```typescript
+import { BreakingExtensions, compile } from "jtdx";
+
+// …
+
+const compilationResult = compile(schema, {
+  breakingExtensions: [BreakingExtensions.disallowLeapSeconds],
+});
+```
+
+If this extension is enabled, for a value in the input that is expected to be a
+timestamp, even if it is a string that conforms to the RFC 3339 format, it will
+still be rejected if its second part is 60.
+
+For example, when this extension is enabled, the following input is considered
+invalid against the schema `{ "type": "timestamp" }`:
+
+```json
+"1990-12-31T23:59:60Z"
+```
+
 ## Breaking Extension `x:checks`: extra validation rules mostly borrowed from JSON Schema
 
 ```typescript

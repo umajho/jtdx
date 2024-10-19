@@ -1,5 +1,7 @@
 import { expect } from "vitest";
 
+import "./init";
+
 import {
   CompilationError,
   CompilationOptions,
@@ -20,6 +22,17 @@ export function expectCompilationErrors(
     .toEqual({ isOk: false, errors });
 }
 
+export function expectValidationOk(
+  schema: Schema,
+  data: any,
+  opts?: {
+    compilationOptions: CompilationOptions;
+  },
+) {
+  const validator = mustCompile(schema, opts);
+  expect(validator.validate(data)).validationToBeOk();
+}
+
 export function expectValidationErrors(
   schema: Schema,
   data: any,
@@ -28,10 +41,14 @@ export function expectValidationErrors(
     compilationOptions: CompilationOptions;
   },
 ) {
+  const validator = mustCompile(schema, opts);
+  expect(validator.validate(data)).validationToBeNotOk(errors);
+}
+
+function mustCompile(schema: Schema, opts?: {
+  compilationOptions: CompilationOptions;
+}) {
   const compResult = compile(schema, opts?.compilationOptions);
   expect(compResult).compilationToBeOk();
-  const validator =
-    (compResult as Extract<CompilationResult, { isOk: true }>).validator;
-
-  expect(validator.validate(data)).toEqual({ isOk: false, errors });
+  return (compResult as Extract<CompilationResult, { isOk: true }>).validator;
 }

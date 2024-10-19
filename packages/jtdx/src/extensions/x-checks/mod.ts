@@ -1,6 +1,11 @@
 /**
  * @module
+ *
  * TODO: use `isDryRun` for optimization.
+ *
+ * FIXME: How to check leap seconds' boundaries? Or make this extension
+ * dependent on extension `(disallow leap seconds)` to make it clear that leap
+ * seconds are not supported here?
  */
 
 import { ExtensionContext } from "../../compiling/extension-context";

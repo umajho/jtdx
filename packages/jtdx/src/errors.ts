@@ -1,4 +1,5 @@
 import { CompilationRawErrorByExtensionDisallowEmptyMappings } from "./extensions/disallow-empty-mappings";
+import { ValidationRawErrorByExtensionDisallowLeapSeconds } from "./extensions/disallow-leap-seconds";
 import {
   CompilationRawErrorByExtensionXChecks,
   ValidationRawErrorByExtensionXChecks,
@@ -151,4 +152,5 @@ export type ValidationRawError =
     type: "DISCRIMINATOR_FORM:INVALID_DISCRIMINATOR_VALUE";
     actualDiscriminatorValue: string;
   }
+  | ValidationRawErrorByExtensionDisallowLeapSeconds
   | ValidationRawErrorByExtensionXChecks;
