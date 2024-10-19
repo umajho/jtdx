@@ -6,6 +6,7 @@ import { compile, ValidationError } from "../../mod";
 import { CompilationResult } from "../../../dist/types/mod";
 import { BreakingExtensions } from "../mod";
 import { Schema } from "../../types";
+import { expectValidationErrors as expectValidationErrorsBase } from "../../../test-support/utils";
 
 import examplesByFeature from "./mod.examples";
 
@@ -202,12 +203,9 @@ function expectValidationErrors(
   data: any,
   errors: ValidationError[],
 ) {
-  const compResult = compile(schema, {
-    breakingExtensions: [BreakingExtensions.xChecks],
+  expectValidationErrorsBase(schema, data, errors, {
+    compilationOptions: {
+      breakingExtensions: [BreakingExtensions.xChecks],
+    },
   });
-  expect(compResult).compilationToBeOk();
-  const validator =
-    (compResult as Extract<CompilationResult, { isOk: true }>).validator;
-
-  expect(validator.validate(data)).toEqual({ isOk: false, errors });
 }

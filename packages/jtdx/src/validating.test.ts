@@ -6,14 +6,10 @@ import officialValidationJson from "../../../third-party/json-typedef-spec/tests
   type: "json",
 };
 
-import {
-  CompilationOptions,
-  CompilationResult,
-  compile,
-} from "./compiling/mod";
-import { Schema, TypeSchemaType } from "./types";
-import { ValidationError } from "./errors";
+import { CompilationResult, compile } from "./compiling/mod";
+import { TypeSchemaType } from "./types";
 import { JSONType } from "./utils/jsonTypeOf";
+import { expectValidationErrors } from "../test-support/utils";
 
 const ONLY = ((): RegExp | null => {
   return null;
@@ -61,7 +57,7 @@ describe("Errors", () => {
         ];
       for (const [i, { type, data, actualType }] of table.entries()) {
         it(`case ${i + 1}`, () => {
-          expectError(
+          expectValidationErrors(
             { type },
             data,
             [{
@@ -80,7 +76,7 @@ describe("Errors", () => {
 
     describe("TYPE_FORM:TYPE_MISMATCH:NOT_INTEGER", () => {
       it("case 1", () => {
-        expectError(
+        expectValidationErrors(
           { type: "uint8" },
           1.5,
           [{
@@ -99,7 +95,7 @@ describe("Errors", () => {
   describe("ENUM_FORM", () => {
     describe("ENUM_FORM:NOT_STRING", () => {
       it("case 1", () => {
-        expectError(
+        expectValidationErrors(
           { enum: ["foo"] },
           42,
           [{
@@ -113,7 +109,7 @@ describe("Errors", () => {
 
     describe("ENUM_FORM:INVALID_VARIANT", () => {
       it("case 1", () => {
-        expectError(
+        expectValidationErrors(
           { enum: ["foo"] },
           "bar",
           [{
@@ -129,7 +125,7 @@ describe("Errors", () => {
   describe("ELEMENTS_FORM", () => {
     describe("ELEMENTS_FORM:NOT_ARRAY", () => {
       it("case 1", () => {
-        expectError(
+        expectValidationErrors(
           { elements: { type: "string" } },
           42,
           [{
@@ -145,7 +141,7 @@ describe("Errors", () => {
   describe("PROPERTIES_FORM", () => {
     describe("PROPERTIES_FORM:NOT_OBJECT", () => {
       it("case 1", () => {
-        expectError(
+        expectValidationErrors(
           { properties: {} },
           42,
           [{
@@ -159,7 +155,7 @@ describe("Errors", () => {
 
     describe("PROPERTIES_FORM:MISSING_REQUIRED_PROPERTY", () => {
       it("case 1", () => {
-        expectError(
+        expectValidationErrors(
           { properties: { foo: { type: "string" } } },
           {},
           [{
@@ -176,7 +172,7 @@ describe("Errors", () => {
 
     describe("PROPERTIES_FORM:UNEXPECTED_ADDITIONAL_PROPERTY", () => {
       it("case 1", () => {
-        expectError(
+        expectValidationErrors(
           { properties: {} },
           { foo: 42 },
           [{
@@ -195,7 +191,7 @@ describe("Errors", () => {
   describe("VALUES_FORM", () => {
     describe("VALUES_FORM:NOT_OBJECT", () => {
       it("case 1", () => {
-        expectError(
+        expectValidationErrors(
           { values: { type: "string" } },
           42,
           [{
@@ -211,7 +207,7 @@ describe("Errors", () => {
   describe("DISCRIMINATOR_FORM", () => {
     describe("DISCRIMINATOR_FORM:NOT_OBJECT", () => {
       it("case 1", () => {
-        expectError(
+        expectValidationErrors(
           { discriminator: "foo", mapping: { bar: { properties: {} } } },
           42,
           [{
@@ -228,7 +224,7 @@ describe("Errors", () => {
 
     describe("DISCRIMINATOR_FORM:MISSING_DISCRIMINATOR", () => {
       it("case 1", () => {
-        expectError(
+        expectValidationErrors(
           { discriminator: "foo", mapping: { bar: { properties: {} } } },
           {},
           [{
@@ -245,7 +241,7 @@ describe("Errors", () => {
 
     describe("DISCRIMINATOR_FORM:DISCRIMINATOR_VALUE_NOT_STRING", () => {
       it("case 1", () => {
-        expectError(
+        expectValidationErrors(
           { discriminator: "foo", mapping: { bar: { properties: {} } } },
           { foo: 42 },
           [{
@@ -262,7 +258,7 @@ describe("Errors", () => {
 
     describe("DISCRIMINATOR_FORM:INVALID_DISCRIMINATOR_VALUE", () => {
       it("case 1", () => {
-        expectError(
+        expectValidationErrors(
           { discriminator: "foo", mapping: { bar: { properties: {} } } },
           { foo: "baz" },
           [{
@@ -278,19 +274,3 @@ describe("Errors", () => {
     });
   });
 });
-
-function expectError(
-  schema: Schema,
-  data: any,
-  errors: ValidationError[],
-  opts?: {
-    compilationOptions: CompilationOptions;
-  },
-) {
-  const compResult = compile(schema, opts?.compilationOptions);
-  expect(compResult).compilationToBeOk();
-  const validator =
-    (compResult as Extract<CompilationResult, { isOk: true }>).validator;
-
-  expect(validator.validate(data)).toEqual({ isOk: false, errors });
-}
