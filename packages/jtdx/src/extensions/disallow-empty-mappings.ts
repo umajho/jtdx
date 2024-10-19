@@ -15,7 +15,7 @@ const COMPILATION_ERROR_TYPES = {
 } as const;
 
 /**
- * For extension `breaking/(disallow empty mappings)`.
+ * For breaking extension `(disallow empty mappings)`.
  */
 export type CompilationRawErrorByExtensionDisallowEmptyMappings =
   // e.g. `{ "discriminator": "foo", "mapping": {} }`.

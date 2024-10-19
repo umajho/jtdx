@@ -20,14 +20,14 @@ export const VET = {
 } as const;
 
 /**
- * For extension `breaking/x:checks`.
+ * For breaking extension `x:checks`.
  */
 export type CompilationRawErrorByExtensionXChecks =
   | { type: typeof CET.TODO }
   | never;
 
 /**
- * For extension `breaking/x:checks`.
+ * For breaking extension `x:checks`.
  *
  * TODO: see TODO of `ValidationRawError`.
  */
