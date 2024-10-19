@@ -73,7 +73,6 @@ export function compile(
   const { hooks, additionalPropertyNames } = (() => {
     const { context, finalize } = createExtensionContext();
     for (const ext of opts?.breakingExtensions ?? []) {
-      // @ts-ignore
       ext[internal](context);
     }
     return finalize();

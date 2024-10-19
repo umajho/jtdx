@@ -18,5 +18,5 @@ export const breakingExtensionXChecks: BreakingExtension = {
 } as BreakingExtension;
 
 export type BreakingExtension =
-  | { [internal]: (ctx: ExtensionContext) => void }
-  | { readonly __tag: unique symbol };
+  & { [internal]: (ctx: ExtensionContext) => void }
+  & { readonly __tag: unique symbol };
