@@ -6,7 +6,6 @@ import {
   ValidationError,
 } from "../errors";
 import { BreakingExtension } from "../extensions/mod";
-import { internal } from "../internal/mod";
 import {
   DiscriminatorSchema,
   ElementsSchema,
@@ -73,7 +72,7 @@ export function compile(
   const { hooks, additionalPropertyNames } = (() => {
     const { context, finalize } = createExtensionContext();
     for (const ext of opts?.breakingExtensions ?? []) {
-      ext[internal](context);
+      ext.__unstable__(context);
     }
     return finalize();
   })();
