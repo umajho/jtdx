@@ -57,12 +57,12 @@ console.log("Validation succeeded!");
 ## Breaking Extension `(disallow empty mappings)`
 
 ```typescript
-import { BreakingExtensions, compile } from "jtdx";
+import { breakingExtensionDisallowEmptyMappings, compile } from "jtdx";
 
 // …
 
 const compilationResult = compile(schema, {
-  breakingExtensions: [BreakingExtensions.disallowEmptyMappings],
+  breakingExtensions: [breakingExtensionDisallowEmptyMappings],
 });
 ```
 
@@ -81,12 +81,12 @@ otherwise it is valid:
 ## Breaking Extension `(disallow leap seconds)`
 
 ```typescript
-import { BreakingExtensions, compile } from "jtdx";
+import { breakingExtensionDisallowLeapSeconds, compile } from "jtdx";
 
 // …
 
 const compilationResult = compile(schema, {
-  breakingExtensions: [BreakingExtensions.disallowLeapSeconds],
+  breakingExtensions: [breakingExtensionDisallowLeapSeconds],
 });
 ```
 
@@ -104,12 +104,12 @@ invalid against the schema `{ "type": "timestamp" }`:
 ## Breaking Extension `x:checks`: extra validation rules mostly borrowed from JSON Schema
 
 ```typescript
-import { BreakingExtensions, compile } from "jtdx";
+import { breakingExtensionXChecks, compile } from "jtdx";
 
 // …
 
 const compilationResult = compile(schema, {
-  breakingExtensions: [BreakingExtensions.xChecks],
+  breakingExtensions: [breakingExtensionXChecks],
 });
 ```
 

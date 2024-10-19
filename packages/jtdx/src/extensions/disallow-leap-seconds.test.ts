@@ -3,14 +3,17 @@ import { describe, it } from "vitest";
 import "../../test-support/init";
 
 import { Schema } from "../types";
-import { BreakingExtensions, CompilationOptions } from "../mod";
+import {
+  breakingExtensionDisallowLeapSeconds,
+  CompilationOptions,
+} from "../mod";
 import {
   expectValidationErrors,
   expectValidationOk,
 } from "../../test-support/utils";
 
 const COMPILATION_OPTIONS: CompilationOptions = {
-  breakingExtensions: [BreakingExtensions.disallowLeapSeconds],
+  breakingExtensions: [breakingExtensionDisallowLeapSeconds],
 };
 
 const ERROR_PREFIX = "EXTENSION:DISALLOW_LEAP_SECONDS" as const;

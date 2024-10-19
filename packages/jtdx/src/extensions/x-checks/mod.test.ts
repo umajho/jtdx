@@ -4,7 +4,7 @@ import { testExamplesByFeatureForValidation } from "../../../test-support/test-e
 
 import { CompilationError, compile, ValidationError } from "../../mod";
 import { CompilationResult } from "../../../dist/types/mod";
-import { BreakingExtensions } from "../mod";
+import { breakingExtensionXChecks } from "../mod";
 import { Schema } from "../../types";
 import {
   expectCompilationErrors as expectCompilationErrorsBase,
@@ -396,7 +396,7 @@ describe("Validation", () => {
     testExamplesByFeatureForValidation(examplesByFeature, {
       createValidator: (schema) => {
         const compileResult = compile(schema, {
-          breakingExtensions: [BreakingExtensions.xChecks],
+          breakingExtensions: [breakingExtensionXChecks],
         });
         expect(compileResult).compilationToBeOk();
         return (compileResult as Extract<CompilationResult, { isOk: true }>)
@@ -579,7 +579,7 @@ function expectCompilationErrors(
 ) {
   expectCompilationErrorsBase(schema, errors, {
     compilationOptions: {
-      breakingExtensions: [BreakingExtensions.xChecks],
+      breakingExtensions: [breakingExtensionXChecks],
     },
   });
 }
@@ -591,7 +591,7 @@ function expectValidationErrors(
 ) {
   expectValidationErrorsBase(schema, data, errors, {
     compilationOptions: {
-      breakingExtensions: [BreakingExtensions.xChecks],
+      breakingExtensions: [breakingExtensionXChecks],
     },
   });
 }

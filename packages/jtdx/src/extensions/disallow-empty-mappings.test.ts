@@ -5,10 +5,10 @@ import { expectCompilationErrors } from "../../test-support/utils";
 import { Schema } from "../types";
 import { CompilationOptions, compile } from "../mod";
 
-import { BreakingExtensions } from "./mod";
+import { breakingExtensionDisallowEmptyMappings } from "./mod";
 
 const COMPILATION_OPTIONS: CompilationOptions = {
-  breakingExtensions: [BreakingExtensions.disallowEmptyMappings],
+  breakingExtensions: [breakingExtensionDisallowEmptyMappings],
 };
 
 const ERROR_PREFIX = "EXTENSION:DISALLOW_EMPTY_MAPPINGS" as const;

@@ -14,4 +14,4 @@ export type {
 
 export { compile } from "./compiling/mod";
 
-export { BreakingExtensions } from "./extensions/mod";
+export * from "./extensions/mod";
