@@ -300,7 +300,7 @@ describe("Errors", () => {
         expectCompilationErrors(
           { discriminator: 42, mapping: { foo: { properties: {} } } } as any,
           [{
-            schemaPath: [],
+            schemaPath: ["discriminator"],
             raw: {
               type: "DISCRIMINATOR_FORM:NON_STRING_DISCRIMINATOR",
               actualDiscriminatorType: "number",
@@ -315,7 +315,7 @@ describe("Errors", () => {
         expectCompilationErrors(
           { discriminator: "foo" } as any,
           [{
-            schemaPath: [],
+            schemaPath: ["discriminator"],
             raw: { type: "DISCRIMINATOR_FORM:MISSING_MAPPING" },
           }],
         );
@@ -327,7 +327,7 @@ describe("Errors", () => {
         expectCompilationErrors(
           { discriminator: "foo", mapping: 42 } as any,
           [{
-            schemaPath: [],
+            schemaPath: ["discriminator"],
             raw: {
               type: "DISCRIMINATOR_FORM:NON_OBJECT_MAPPING",
               actualMappingType: "number",

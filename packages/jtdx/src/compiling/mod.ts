@@ -657,23 +657,25 @@ function compileSchemaOfDiscriminator(
     validationOptions: ValidationOptions;
   },
 ) {
+  const sp = [...spParent, "discriminator"];
+
   const discriminator = schema.discriminator;
   const mapping = schema.mapping;
 
   if (typeof discriminator !== "string") {
-    opts.pushError(spParent, {
+    opts.pushError(sp, {
       type: "DISCRIMINATOR_FORM:NON_STRING_DISCRIMINATOR",
       actualDiscriminatorType: jsonTypeOf(discriminator),
     });
   }
 
   if (!opts.groupedKeys.mapping) {
-    opts.pushError(spParent, { type: "DISCRIMINATOR_FORM:MISSING_MAPPING" });
+    opts.pushError(sp, { type: "DISCRIMINATOR_FORM:MISSING_MAPPING" });
     return null;
   }
   const tMapping = jsonTypeOf(mapping);
   if (tMapping !== "object") {
-    opts.pushError(spParent, {
+    opts.pushError(sp, {
       type: "DISCRIMINATOR_FORM:NON_OBJECT_MAPPING",
       actualMappingType: tMapping,
     });
