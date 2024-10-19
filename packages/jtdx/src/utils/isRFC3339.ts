@@ -1,53 +1,93 @@
 /*!
-  https://github.com/validatorjs/validator.js/blob/ff56dcf5ad16abc4127528eafae559ac716863fb/src/lib/isRFC3339.js
+  https://github.com/jsontypedef/json-typedef-js/blob/ab4678ad38f05df43a3c16559a7b9ac515e6648c/src/rfc3339.ts
 
-  Copyright (c) 2018 Chris O'Hara <cohara87@gmail.com>
+  MIT License
 
-  Permission is hereby granted, free of charge, to any person obtaining
-  a copy of this software and associated documentation files (the
-  "Software"), to deal in the Software without restriction, including
-  without limitation the rights to use, copy, modify, merge, publish,
-  distribute, sublicense, and/or sell copies of the Software, and to
-  permit persons to whom the Software is furnished to do so, subject to
-  the following conditions:
+  Copyright (c) 2020 JSON Type Definition Contributors
 
-  The above copyright notice and this permission notice shall be
-  included in all copies or substantial portions of the Software.
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 
-/* Based on https://tools.ietf.org/html/rfc3339#section-5.6 */
+const pattern =
+  /^(\d{4})-(\d{2})-(\d{2})[tT](\d{2}):(\d{2}):(\d{2})(\.\d+)?([zZ]|((\+|-)(\d{2}):(\d{2})))$/;
 
-const dateFullYear = /[0-9]{4}/;
-const dateMonth = /(0[1-9]|1[0-2])/;
-const dateMDay = /([12]\d|0[1-9]|3[01])/;
+export default function isRFC3339(s: string): boolean {
+  const matches = s.match(pattern);
+  if (matches === null) {
+    return false;
+  }
 
-const timeHour = /([01][0-9]|2[0-3])/;
-const timeMinute = /[0-5][0-9]/;
-const timeSecond = /([0-5][0-9]|60)/;
+  const year = parseInt(matches[1]!, 10);
+  const month = parseInt(matches[2]!, 10);
+  const day = parseInt(matches[3]!, 10);
+  const hour = parseInt(matches[4]!, 10);
+  const minute = parseInt(matches[5]!, 10);
+  const second = parseInt(matches[6]!, 10);
 
-const timeSecFrac = /(\.[0-9]+)?/;
-const timeNumOffset = new RegExp(`[-+]${timeHour.source}:${timeMinute.source}`);
-const timeOffset = new RegExp(`([zZ]|${timeNumOffset.source})`);
+  if (month > 12) {
+    return false;
+  }
 
-const partialTime = new RegExp(
-  `${timeHour.source}:${timeMinute.source}:${timeSecond.source}${timeSecFrac.source}`,
-);
+  if (day > maxDay(year, month)) {
+    return false;
+  }
 
-const fullDate = new RegExp(
-  `${dateFullYear.source}-${dateMonth.source}-${dateMDay.source}`,
-);
-const fullTime = new RegExp(`${partialTime.source}${timeOffset.source}`);
+  if (hour > 23) {
+    return false;
+  }
 
-const rfc3339 = new RegExp(`^${fullDate.source}[ tT]${fullTime.source}$`);
+  if (minute > 59) {
+    return false;
+  }
 
-export default function isRFC3339(str: string) {
-  return rfc3339.test(str);
+  // A value of 60 is permissible as a leap second.
+  if (second > 60) {
+    return false;
+  }
+
+  return true;
 }
+
+function maxDay(year: number, month: number): number {
+  if (month === 2) {
+    return isLeapYear(year) ? 29 : 28;
+  }
+
+  return MONTH_LENGTHS[month]!;
+}
+
+function isLeapYear(n: number): boolean {
+  return n % 4 === 0 && (n % 100 !== 0 || n % 400 === 0);
+}
+
+const MONTH_LENGTHS = [
+  0, // months are 1-indexed, this is a dummy element
+  31,
+  0, // Feb is handled separately
+  31,
+  30,
+  31,
+  30,
+  31,
+  31,
+  30,
+  31,
+  30,
+  31,
+];
