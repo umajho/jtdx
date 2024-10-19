@@ -32,7 +32,7 @@ describe("Validation", () => {
   describe("Errors", () => {
     describe("PATTERN_MISMATCH", () => {
       it("case 1", () => {
-        expectValidationError(
+        expectValidationErrors(
           { type: "string", "x:checks": { pattern: "foo" } },
           "bar",
           [{
@@ -48,7 +48,7 @@ describe("Validation", () => {
     });
     describe("NOT_MULTIPLE_OF", () => {
       it("case 1", () => {
-        expectValidationError(
+        expectValidationErrors(
           { type: "int32", "x:checks": { multipleOf: 2 } },
           3,
           [{
@@ -64,7 +64,7 @@ describe("Validation", () => {
     });
     describe("ELEMENTS_NOT_UNIQUE", () => {
       it("case 1", () => {
-        expectValidationError(
+        expectValidationErrors(
           { elements: { type: "int8" }, "x:checks": { uniqueElements: true } },
           [42, 42],
           [{
@@ -75,7 +75,7 @@ describe("Validation", () => {
         );
       });
       it("case 2", () => {
-        expectValidationError(
+        expectValidationErrors(
           { elements: { enum: ["foo"] }, "x:checks": { uniqueElements: true } },
           ["foo", "foo"],
           [{
@@ -88,7 +88,7 @@ describe("Validation", () => {
     });
     describe("OUT_OF_BOUND", () => {
       it("case 1", () => {
-        expectValidationError(
+        expectValidationErrors(
           { type: "string", "x:checks": { minLength: 5 } },
           "1234",
           [{
@@ -104,7 +104,7 @@ describe("Validation", () => {
         );
       });
       it("case 2", () => {
-        expectValidationError(
+        expectValidationErrors(
           { type: "int8", "x:checks": { exclusiveMaximum: 5 } },
           5,
           [{
@@ -120,7 +120,7 @@ describe("Validation", () => {
         );
       });
       it("case 3", () => {
-        expectValidationError(
+        expectValidationErrors(
           { elements: {}, "x:checks": { minElements: 3 } },
           [],
           [{
@@ -136,7 +136,7 @@ describe("Validation", () => {
         );
       });
       it("case 4", () => {
-        expectValidationError(
+        expectValidationErrors(
           {
             properties: { foo: {} },
             additionalProperties: true,
@@ -156,7 +156,7 @@ describe("Validation", () => {
         );
       });
       it("case 5", () => {
-        expectValidationError(
+        expectValidationErrors(
           {
             optionalProperties: { foo: {}, bar: {} },
             "x:checks": { maxProperties: 1 },
@@ -175,7 +175,7 @@ describe("Validation", () => {
         );
       });
       it("case 6", () => {
-        expectValidationError(
+        expectValidationErrors(
           {
             values: {},
             "x:checks": { minValues: 1 },
@@ -197,7 +197,7 @@ describe("Validation", () => {
   });
 });
 
-function expectValidationError(
+function expectValidationErrors(
   schema: Schema,
   data: any,
   errors: ValidationError[],
