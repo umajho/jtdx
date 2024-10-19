@@ -6,6 +6,14 @@
  * FIXME: How to check leap seconds' boundaries? Or make this extension
  * dependent on extension `(disallow leap seconds)` to make it clear that leap
  * seconds are not supported here?
+ *
+ * TODO: during compilation, reject checks that are impossible to satisfy on
+ * validation, such as:
+ * - `{ type: "int8", "x:checks": { minimum: 8, maximum: 10, multipleOf: 6 } }`.
+ *    (multiple of 6 cannot be in range [8, 10].)
+ * - `{ properties: { foo: {} }, "x:checks": { minProperties: 2 } }`.
+ *    (the object can and can only have 1 property, which alway violates the
+ *    check.)
  */
 
 import { ExtensionContext } from "../../compiling/extension-context";
@@ -24,7 +32,7 @@ import {
 } from "../../types";
 import isRFC3339 from "../../utils/isRFC3339";
 import { jsonTypeOf } from "../../utils/jsonTypeOf";
-import { VET } from "./errors";
+import { CET, VET } from "./errors";
 import {
   isBoundableType,
   isIntegerType,
@@ -66,9 +74,14 @@ function checkTypeSchema(schema: TypeSchema, opts: HookOptions) {
       shouldBoundsBeNonNegativeIntegers: true,
       extractTarget: (v) => v.length,
       processBound: (_, opts) => {
-        if (schema.type === "string") return null;
-        opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
-        return false;
+        if (schema.type !== "string") {
+          opts.pushError({
+            type: CET.TYPE_FORM.LENGTH_ON_NON_STRING,
+            actualType: schema.type,
+          });
+          return false;
+        }
+        return null;
       },
       pushError: opts.pushError,
     });
@@ -76,13 +89,22 @@ function checkTypeSchema(schema: TypeSchema, opts: HookOptions) {
     if ("pattern" in xChecksObject) {
       const pattern = take(xChecksObject, "pattern")!;
       if (schema.type !== "string") {
-        opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+        opts.pushError({
+          type: CET.TYPE_FORM.PATTERN_ON_NON_STRING,
+          actualType: schema.type,
+        });
       } else if (typeof pattern !== "string") {
-        opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+        opts.pushError({
+          type: CET.TYPE_FORM.NON_STRING_PATTERN,
+          patternType: jsonTypeOf(pattern),
+        });
       } else {
         const rxOrErr = tryNewRegExp(pattern);
         if (rxOrErr instanceof Error) {
-          opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+          opts.pushError({
+            type: CET.TYPE_FORM.INVALID_PATTERN,
+            errorMessage: rxOrErr.message,
+          });
         } else {
           fns.push((v: string, opts) => {
             if (!rxOrErr.test(v)) {
@@ -105,15 +127,26 @@ function checkTypeSchema(schema: TypeSchema, opts: HookOptions) {
         : (v) => v,
       processBound: (bound, opts) => {
         if (!isBoundableType(schema.type)) {
-          opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+          opts.pushError({
+            type: CET.TYPE_FORM.BOUND_ON_NON_BOUNDABLE,
+            boundSide: opts.boundSide,
+            actualType: schema.type,
+          });
           return false;
         }
         if (schema.type === "timestamp") {
           if (typeof bound !== "string") {
-            opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+            opts.pushError({
+              type: CET.TYPE_FORM.NON_STRING_BOUND_ON_TIMESTAMP,
+              boundSide: opts.boundSide,
+              actualBoundType: jsonTypeOf(bound),
+            });
             return false;
           } else if (!isRFC3339(bound)) {
-            opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+            opts.pushError({
+              type: CET.TYPE_FORM.NON_RFC3339_BOUND_ON_TIMESTAMP,
+              boundSide: opts.boundSide,
+            });
             return false;
           }
           return new Date(bound).getTime();
@@ -127,13 +160,20 @@ function checkTypeSchema(schema: TypeSchema, opts: HookOptions) {
           if (isIntegerType(schema.type)) {
             if (!Number.isInteger(bound)) {
               isOk = false;
-              opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+              opts.pushError({
+                type: CET.TYPE_FORM.NON_INTEGER_BOUND_ON_INTEGER,
+                boundSide: opts.boundSide,
+              });
             }
 
             const range = RANGES[schema.type];
             if (bound < range[0] || bound > range[1]) {
               isOk = false;
-              opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+              opts.pushError({
+                type: CET.TYPE_FORM.BOUND_OUT_OF_RANGE,
+                boundSide: opts.boundSide,
+                typeType: schema.type,
+              });
             }
           }
 
@@ -148,16 +188,20 @@ function checkTypeSchema(schema: TypeSchema, opts: HookOptions) {
     if ("multipleOf" in xChecksObject) {
       const multipleOf = take(xChecksObject, "multipleOf")!;
       if (!isNumericType(schema.type)) {
-        opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+        opts.pushError({ type: CET.TYPE_FORM.MULTIPLE_OF_ON_NON_NUMERIC });
       } else if (!isIntegerType(schema.type)) {
         // TODO: figure out how to handle rounding issues to support non-integer
         // numbers.
-        opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+        opts.pushError({
+          type: CET.TYPE_FORM.MULTIPLE_OF_ON_NON_INTEGER_NUMERIC_NOT_SUPPORTED,
+        });
       } else if (typeof multipleOf !== "number") {
-        opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+        opts.pushError({ type: CET.TYPE_FORM.NON_NUMERIC_MULTIPLE_OF });
       } else if (!Number.isInteger(multipleOf)) {
         // TODO: same as above. (rounding issues)
-        opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+        opts.pushError({
+          type: CET.TYPE_FORM.NON_INTEGER_MULTIPLE_OF_NOT_SUPPORTED,
+        });
       } else {
         fns.push((v: number, opts) => {
           if (v % multipleOf !== 0) {
@@ -277,17 +321,33 @@ function checkThatTargetIsInBound(
   const {
     bound: min,
     isExclusive: isMinExclusive,
-  } = extractBound(xChecksObject, { ...baseExtractBoundOpts, ...opts.min });
+  } = extractBound(xChecksObject, {
+    comparisonTargetType,
+    side: "min",
+    ...baseExtractBoundOpts,
+    ...opts.min,
+  });
   const {
     bound: max,
     isExclusive: isMaxExclusive,
-  } = extractBound(xChecksObject, { ...baseExtractBoundOpts, ...opts.max });
+  } = extractBound(xChecksObject, {
+    comparisonTargetType,
+    side: "max",
+    ...baseExtractBoundOpts,
+    ...opts.max,
+  });
 
   if (min !== null && max !== null) {
     if (min > max) {
-      opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
-    } else if (isMinExclusive && isMaxExclusive && min === max) {
-      opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+      opts.pushError({
+        type: CET.BOUND.MIN_GREATER_THAN_MAX,
+        comparisonTargetType,
+      });
+    } else if ((isMinExclusive || isMaxExclusive) && min === max) {
+      opts.pushError({
+        type: CET.BOUND.MIN_EQUAL_TO_MAX_WHILE_EXCLUSIVE,
+        comparisonTargetType,
+      });
     }
   }
 
@@ -349,12 +409,17 @@ function checkThatTargetIsInBound(
  */
 type BoundProcessor = (
   bound: any,
-  opts: { pushError: (raw: CompilationRawError) => void },
+  opts: {
+    boundSide: "min" | "max";
+    pushError: (raw: CompilationRawError) => void;
+  },
 ) => number | false | null;
 
 const NULL_BOUND = { bound: null, isExclusive: false };
 
 function extractBound(xChecksObject: any, opts: {
+  comparisonTargetType: ComparisonTargetType;
+  side: "min" | "max";
   key: string;
   exclusiveKey?: string;
   shouldBeNonNegativeInteger: boolean;
@@ -367,7 +432,12 @@ function extractBound(xChecksObject: any, opts: {
   let isExclusive = false;
   if (opts.exclusiveKey && opts.exclusiveKey in xChecksObject) {
     if (opts.key in xChecksObject) {
-      opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+      opts.pushError({
+        type: CET.BOUND.BOTH_EXCLUSIVE_AND_INCLUSIVE,
+        comparisonTargetType: opts.comparisonTargetType,
+        boundSide: opts.side,
+      });
+      delete xChecksObject[opts.key];
     }
     key = opts.exclusiveKey;
     isExclusive = true;
@@ -376,15 +446,27 @@ function extractBound(xChecksObject: any, opts: {
   } else return NULL_BOUND;
 
   const bound__ = take(xChecksObject, key)!;
-  const bound_ = opts.processBound?.(bound__, opts) ?? null;
-  if (bound__ === false) return NULL_BOUND;
+  const bound_ = opts.processBound?.(bound__, {
+    boundSide: opts.side,
+    pushError: opts.pushError,
+  }) ?? null;
+  if (bound_ === false) return NULL_BOUND;
   const bound = bound_ ?? bound__;
 
   if (typeof bound !== "number") {
-    opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+    opts.pushError({
+      type: CET.BOUND.NON_NUMERIC_BOUND,
+      comparisonTargetType: opts.comparisonTargetType,
+      boundSide: opts.side,
+      actualBoundType: jsonTypeOf(bound),
+    });
     return NULL_BOUND;
   } else if (opts.shouldBeNonNegativeInteger && !isNonNegativeInteger(bound)) {
-    opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+    opts.pushError({
+      type: CET.BOUND.NEGATIVE_OR_NON_INTEGER_BOUND_NOT_ALLOWED,
+      comparisonTargetType: opts.comparisonTargetType,
+      boundSide: opts.side,
+    });
     return NULL_BOUND;
   }
 
@@ -399,7 +481,7 @@ function tryExtractXChecksObject<T extends Schema>(
 
   const t = jsonTypeOf(schema["x:checks"]);
   if (t !== "object") {
-    opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+    opts.pushError({ type: CET.X_OBJECT.NOT_OBJECT });
     return null;
   }
 
@@ -414,5 +496,5 @@ function pushErrorIfHasSurplusProperties(
   const keys = Object.keys(xChecksObject);
   if (!keys.length) return;
 
-  opts.pushError({ type: "EXTENSION:X_CHECKS:TODO" });
+  opts.pushError({ type: CET.X_OBJECT.SURPLUS_PROPERTIES, keys });
 }

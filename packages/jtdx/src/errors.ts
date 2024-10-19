@@ -22,6 +22,9 @@ export function createCompilationError(
   return { schemaPath, raw };
 }
 
+/**
+ * TODO: see TODO of `ValidationRawError`.
+ */
 export type CompilationRawError =
   // e.g. `{ "type": "string", "properties": {} }` => `{ ..., discriminatorKeys: ["type", "properties"] }`.
   | { type: "SCHEMA_FORM:AMBIGUOUS"; discriminatorKeys: string[] }

@@ -247,18 +247,12 @@ export function validateProperties(
   v: any,
   subValidateFns: PropertyValidateFunctions,
   schemaPath: string[],
+  selfSchemaPath: string[],
   instancePath: string[],
   refs: ValidationReferences,
   opts: ValidationOptionsForProperties,
 ) {
   if (opts.isNullable && v === null) return;
-
-  const selfSchemaPath = [
-    ...schemaPath,
-    (!Object.keys(subValidateFns).length || opts.requiredProperties)
-      ? "properties"
-      : "optionalProperties",
-  ];
 
   const t = jsonTypeOf(v);
   if (t !== "object") {

@@ -331,13 +331,13 @@ function compileSchemaOfEmpty(
     validationOptions: ValidationOptions;
   },
 ) {
-  const sp = [...spParent, "type"];
+  const sp = spParent;
 
   const supFns = runHooks(
     opts.references.options.hooks,
     "empty",
     schema,
-    { pushError: (raw) => opts.pushError(spParent, raw) },
+    { pushError: (raw) => opts.pushError(sp, raw) },
   );
   if (supFns) {
     opts.validationOptions.supplementalValidateFunctions = supFns;
@@ -365,7 +365,7 @@ function compileSchemaOfType(
     opts.references.options.hooks,
     "type",
     schema,
-    { pushError: (raw) => opts.pushError(spParent, raw) },
+    { pushError: (raw) => opts.pushError(sp, raw) },
   );
   if (supFns) {
     opts.validationOptions.supplementalValidateFunctions = supFns;
@@ -466,7 +466,7 @@ function compileSchemaOfEnum(
     opts.references.options.hooks,
     "enum",
     schema,
-    { pushError: (raw) => opts.pushError(spParent, raw) },
+    { pushError: (raw) => opts.pushError(sp, raw) },
   );
   if (supFns) {
     opts.validationOptions.supplementalValidateFunctions = supFns;
@@ -494,7 +494,7 @@ function compileSchemaOfElements(
     opts.references.options.hooks,
     "elements",
     schema,
-    { pushError: (raw) => opts.pushError(spParent, raw) },
+    { pushError: (raw) => opts.pushError(sp, raw) },
   );
   if (supFns) {
     opts.validationOptions.supplementalValidateFunctions = supFns;
@@ -591,11 +591,18 @@ function compileSchemaOfProperties(
     }
   }
 
+  const spSelf = [
+    ...spParent,
+    (!Object.keys(subsToCompile).length || vOpts.requiredProperties)
+      ? "properties"
+      : "optionalProperties",
+  ];
+
   const supFns = runHooks(
     opts.references.options.hooks,
     "properties",
     schema,
-    { pushError: (raw) => opts.pushError(spParent, raw) },
+    { pushError: (raw) => opts.pushError(spSelf, raw) },
   );
   if (supFns) {
     opts.validationOptions.supplementalValidateFunctions = supFns;
@@ -610,7 +617,7 @@ function compileSchemaOfProperties(
 
   if (opts.isDryRun()) return null;
   return ok((v, ip, refs) =>
-    validateProperties(v, subs, spParent, ip, refs, vOpts)
+    validateProperties(v, subs, spParent, spSelf, ip, refs, vOpts)
   );
 }
 
@@ -631,7 +638,7 @@ function compileSchemaOfValues(
     opts.references.options.hooks,
     "values",
     schema,
-    { pushError: (raw) => opts.pushError(spParent, raw) },
+    { pushError: (raw) => opts.pushError(sp, raw) },
   );
   if (supFns) {
     opts.validationOptions.supplementalValidateFunctions = supFns;
@@ -686,7 +693,7 @@ function compileSchemaOfDiscriminator(
     opts.references.options.hooks,
     "discriminator",
     schema,
-    { pushError: (raw) => opts.pushError(spParent, raw) },
+    { pushError: (raw) => opts.pushError(sp, raw) },
   );
   if (supFns) {
     opts.validationOptions.supplementalValidateFunctions = supFns;
@@ -742,7 +749,7 @@ function compileSchemaOfRef(
     opts.references.options.hooks,
     "ref",
     schema,
-    { pushError: (raw) => opts.pushError(spParent, raw) },
+    { pushError: (raw) => opts.pushError(sp, raw) },
   );
   if (supFns) {
     opts.validationOptions.supplementalValidateFunctions = supFns;

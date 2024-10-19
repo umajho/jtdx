@@ -23,7 +23,7 @@ describe("Compilation", () => {
       expectCompilationErrors(
         schema,
         [{
-          schemaPath: [],
+          schemaPath: ["discriminator"],
           raw: { type: `${ERROR_PREFIX}:DISCRIMINATOR_FORM:EMPTY_MAPPING` },
         }],
         { compilationOptions: COMPILATION_OPTIONS },
